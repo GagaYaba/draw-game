@@ -56,7 +56,10 @@ export function GuessConfirmationDialog({
       cancelLabel="Modifier mon choix"
       value={
         value === null ? undefined : (
-          <span aria-label={`Estimation choisie : ${value} sur 10`}>{value} / 10</span>
+          <span>
+            <span className="visually-hidden">Estimation choisie : </span>
+            {value} / 10
+          </span>
         )
       }
       mascot={{

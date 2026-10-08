@@ -149,3 +149,9 @@
     transition: none;
   }
 }
+.guess-scale {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

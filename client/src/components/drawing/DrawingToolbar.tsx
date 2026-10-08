@@ -72,7 +72,7 @@ export function DrawingToolbar({
   onClear,
 }: DrawingToolbarProps) {
   return (
-    <div className="drawing-toolbar drawing-tools" role="group" aria-label="Outils de dessin">
+    <section className="drawing-toolbar drawing-tools" aria-label="Outils de dessin">
       <fieldset className="toolbar-group toolbar-group--tools">
         <legend>Outil</legend>
         <div className="toolbar-options toolbar-options--tools">
@@ -162,7 +162,8 @@ export function DrawingToolbar({
         </div>
       </fieldset>
 
-      <div className="toolbar-history-actions" aria-label="Actions du dessin">
+      <fieldset className="toolbar-history-actions">
+        <legend className="visually-hidden">Actions du dessin</legend>
         <button
           className="tool-button tool-button--icon"
           type="button"
@@ -183,12 +184,12 @@ export function DrawingToolbar({
         >
           <DrawingToolIcon name="trash" />
         </button>
-      </div>
+      </fieldset>
 
       <p className="toolbar-selection" aria-live="polite">
         Outil : {TOOL_LABELS[selectedTool]}. Couleur : {COLOR_LABELS[selectedColor]}.
         {selectedTool !== "fill" && <> Taille : {WIDTH_LABELS[selectedWidth]}.</>}
       </p>
-    </div>
+    </section>
   );
 }

@@ -21,9 +21,15 @@ const parsedReconnectGraceMs =
 const reconnectGraceMs = isValidReconnectGraceMs(parsedReconnectGraceMs)
   ? parsedReconnectGraceMs
   : DEFAULT_RECONNECT_GRACE_MS;
+const allowedSocketOrigins = (process.env.SOCKET_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);
 
 const { dispose, httpServer, io } = createDrawingGameServer({
   reconnectGraceMs,
+  allowedSocketOrigins,
+  allowLoopbackSocketOrigins: process.env.NODE_ENV !== "production",
 });
 const gracefulShutdown = createGracefulShutdown({
   closeSocketServer: () => closeSocketServer(io),

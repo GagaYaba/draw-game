@@ -832,9 +832,38 @@ export function useRoomSession() {
     return true;
   };
 
+  const socketLifecycleHandlersRef = useRef({
+    applyRoomState,
+    clearPendingAction,
+    clearPersistedPrivateState,
+    clearRestoreRetryTimer,
+    clearTrackedGameContext,
+    clearTrackedSessionContext,
+    pauseClientSessionAfterRestoreFailure,
+    resetGuessState,
+    restoreSession,
+    stopRestoreSequence,
+    updateConnectionStatus,
+    updateGuessState,
+  });
+  socketLifecycleHandlersRef.current = {
+    applyRoomState,
+    clearPendingAction,
+    clearPersistedPrivateState,
+    clearRestoreRetryTimer,
+    clearTrackedGameContext,
+    clearTrackedSessionContext,
+    pauseClientSessionAfterRestoreFailure,
+    resetGuessState,
+    restoreSession,
+    stopRestoreSequence,
+    updateConnectionStatus,
+    updateGuessState,
+  };
+
   useEffect(() => {
     const handleRoomState = (room: PublicRoomState) => {
-      applyRoomState(room);
+      socketLifecycleHandlersRef.current.applyRoomState(room);
     };
 
     const handleTurnSecret = (payload: TurnSecretPayload) => {
@@ -861,20 +890,20 @@ export function useRoomSession() {
         return;
       }
 
-      clearTrackedGameContext();
-      clearPersistedPrivateState();
+      socketLifecycleHandlersRef.current.clearTrackedGameContext();
+      socketLifecycleHandlersRef.current.clearPersistedPrivateState();
       setGameSecrets(EMPTY_GAME_SECRETS);
-      resetGuessState();
+      socketLifecycleHandlersRef.current.resetGuessState();
       setErrorMessage(null);
       setNoticeMessage(payload.message);
 
       if (pendingActionRef.current !== null) {
-        clearPendingAction(true);
+        socketLifecycleHandlersRef.current.clearPendingAction(true);
       }
     };
 
     const handleConnect = () => {
-      restoreSession();
+      socketLifecycleHandlersRef.current.restoreSession();
     };
 
     const handleDisconnect = () => {
@@ -884,13 +913,13 @@ export function useRoomSession() {
 
       restoreActionTokenRef.current += 1;
       restoreAttemptInFlightRef.current = false;
-      clearRestoreRetryTimer();
+      socketLifecycleHandlersRef.current.clearRestoreRetryTimer();
       attachedSocketIdRef.current = null;
-      clearPendingAction(true);
+      socketLifecycleHandlersRef.current.clearPendingAction(true);
       guessActionTokenRef.current += 1;
 
       if (guessStateRef.current.isSubmitting) {
-        updateGuessState((currentState) => ({
+        socketLifecycleHandlersRef.current.updateGuessState((currentState) => ({
           ...currentState,
           isSubmitting: false,
           error: null,
@@ -901,23 +930,23 @@ export function useRoomSession() {
         if (restoreSuppressedRef.current) {
           return;
         }
-        updateConnectionStatus("disconnected");
+        socketLifecycleHandlersRef.current.updateConnectionStatus("disconnected");
         setConnectionAnnouncement("Connexion interrompue. Tentative de reconnexion en cours.");
         return;
       }
 
       if (!hadPendingAction) {
-        updateConnectionStatus("connecting");
+        socketLifecycleHandlersRef.current.updateConnectionStatus("connecting");
         return;
       }
 
-      clearTrackedSessionContext();
+      socketLifecycleHandlersRef.current.clearTrackedSessionContext();
       setGameSecrets(EMPTY_GAME_SECRETS);
-      resetGuessState();
+      socketLifecycleHandlersRef.current.resetGuessState();
       setNoticeMessage(null);
       setErrorMessage("La connexion au serveur a été interrompue avant sa réponse.");
       setSession(EMPTY_SESSION);
-      updateConnectionStatus("connecting");
+      socketLifecycleHandlersRef.current.updateConnectionStatus("connecting");
     };
 
     const handleConnectError = () => {
@@ -927,14 +956,14 @@ export function useRoomSession() {
           restoreAttemptInFlightRef.current,
         )
       ) {
-        pauseClientSessionAfterRestoreFailure(
+        socketLifecycleHandlersRef.current.pauseClientSessionAfterRestoreFailure(
           "Impossible de se reconnecter au serveur pour restaurer la session.",
         );
         return;
       }
 
       if (currentPlayerIdRef.current !== null || storedSessionRef.current !== null) {
-        updateConnectionStatus("disconnected");
+        socketLifecycleHandlersRef.current.updateConnectionStatus("disconnected");
         setConnectionAnnouncement("Connexion interrompue. Tentative de reconnexion en cours.");
       }
     };
@@ -953,7 +982,7 @@ export function useRoomSession() {
     }
 
     return () => {
-      stopRestoreSequence(false);
+      socketLifecycleHandlersRef.current.stopRestoreSequence(false);
       socket.off(SOCKET_EVENTS.ROOM_STATE, handleRoomState);
       socket.off(SOCKET_EVENTS.TURN_SECRET, handleTurnSecret);
       socket.off(SOCKET_EVENTS.GAME_CANCELLED, handleGameCancelled);

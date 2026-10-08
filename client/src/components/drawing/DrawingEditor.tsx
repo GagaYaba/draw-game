@@ -102,7 +102,10 @@ export function DrawingEditor({
 
   useEffect(() => {
     writeStoredDrawingDraft({
-      ...draftContext,
+      roomCode: draftContext.roomCode,
+      gameId: draftContext.gameId,
+      turnId: draftContext.turnId,
+      playerId: draftContext.playerId,
       drawing: createDrawingDocument(strokes),
       selectedTool,
       selectedColor,

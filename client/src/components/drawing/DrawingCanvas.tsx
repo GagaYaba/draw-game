@@ -61,7 +61,6 @@ export function DrawingCanvas({
 }: DrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useMemo(() => createDrawingDocument(strokes), [strokes]);
-  const drawingRef = useRef(drawing);
   const activeStrokeRef = useRef<DrawingPathStroke | null>(null);
   const activePointerIdRef = useRef<number | null>(null);
   const renderCacheRef = useRef<{
@@ -70,8 +69,6 @@ export function DrawingCanvas({
     state: DrawingRenderCacheState | null;
     drawing: DrawingDocument | null;
   } | null>(null);
-
-  drawingRef.current = drawing;
 
   const getRenderCache = useCallback(() => {
     const existingCache = renderCacheRef.current;
@@ -101,7 +98,7 @@ export function DrawingCanvas({
       return;
     }
 
-    const currentDrawing = drawingRef.current;
+    const currentDrawing = drawing;
     const renderCache = getRenderCache();
     if (renderCache === null) {
       renderDrawingDocument(metrics.context, currentDrawing, metrics.width, metrics.height);
@@ -134,11 +131,11 @@ export function DrawingCanvas({
         DRAWING_BACKGROUND_COLOR,
       );
     }
-  }, [getRenderCache]);
+  }, [drawing, getRenderCache]);
 
   useLayoutEffect(() => {
     redrawCanvas();
-  }, [redrawCanvas, strokes]);
+  }, [redrawCanvas]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -307,17 +304,12 @@ export function DrawingCanvas({
   };
 
   return (
-    <div
-      className={`drawing-canvas-frame${disabled ? " drawing-canvas-frame--disabled" : ""}`}
-      role="group"
-      aria-label="Zone de dessin interactive au format quatre tiers"
-      aria-describedby={describedBy}
-      aria-disabled={disabled}
-    >
+    <div className={`drawing-canvas-frame${disabled ? " drawing-canvas-frame--disabled" : ""}`}>
       <canvas
         ref={canvasRef}
         className={`drawing-canvas drawing-canvas--${selectedTool}`}
         aria-label="Zone de dessin interactive au format quatre tiers"
+        aria-describedby={describedBy}
         aria-disabled={disabled}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
