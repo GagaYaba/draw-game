@@ -167,10 +167,7 @@ export function LobbyScreen({
           <p className="eyebrow">Salon en direct</p>
           <h2 id="lobby-title">Votre lobby</h2>
         </div>
-        <p
-          className="player-count"
-          aria-label={`${room.playerCount} joueurs sur ${room.maxPlayers}`}
-        >
+        <p className="player-count">
           <strong>
             {room.playerCount} / {room.maxPlayers}
           </strong>
@@ -181,11 +178,9 @@ export function LobbyScreen({
       <div className="room-code-block">
         <div>
           <span className="room-code-label">Code du salon</span>
-          <strong
-            className="room-code"
-            aria-label={`Code du salon ${room.code.split("").join(" ")}`}
-          >
-            {room.code}
+          <strong className="room-code">
+            <span className="visually-hidden">{room.code.split("").join(" ")}</span>
+            <span aria-hidden="true">{room.code}</span>
           </strong>
         </div>
         <div className="copy-actions">

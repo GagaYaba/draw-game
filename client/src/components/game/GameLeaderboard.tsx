@@ -37,8 +37,9 @@ export function GameLeaderboard({
                   : "game-leaderboard__entry"
               }
             >
-              <span className="game-leaderboard__rank" aria-label={`Rang ${entry.rank}`}>
-                {entry.rank}
+              <span className="game-leaderboard__rank">
+                <span className="visually-hidden">Rang </span>
+                <span aria-hidden="true">{entry.rank}</span>
               </span>
               <span className="game-leaderboard__player">
                 {entry.player.nickname}

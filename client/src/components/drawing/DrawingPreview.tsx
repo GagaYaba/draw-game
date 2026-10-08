@@ -18,7 +18,6 @@ interface DrawingPreviewProps {
 
 export function DrawingPreview({ drawing, description }: DrawingPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawingRef = useRef(drawing);
   const renderCacheRef = useRef<{
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
@@ -26,8 +25,6 @@ export function DrawingPreview({ drawing, description }: DrawingPreviewProps) {
     drawing: DrawingDocument | null;
   } | null>(null);
   const descriptionId = useId();
-
-  drawingRef.current = drawing;
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -59,11 +56,11 @@ export function DrawingPreview({ drawing, description }: DrawingPreviewProps) {
       }
 
       if (renderCache === null) {
-        renderDrawingDocument(metrics.context, drawingRef.current, metrics.width, metrics.height);
+        renderDrawingDocument(metrics.context, drawing, metrics.width, metrics.height);
         return;
       }
 
-      const currentDrawing = drawingRef.current;
+      const currentDrawing = drawing;
       if (renderCache.drawing !== currentDrawing) {
         const update = updateDrawingRenderCache(
           renderCache.context,

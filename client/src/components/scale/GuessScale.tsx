@@ -67,16 +67,15 @@ export function GuessScale({
   });
 
   return (
-    <div
+    <fieldset
       className={
         disabled
           ? `scale-gauge guess-scale guess-scale--${size} guess-scale--disabled`
           : `scale-gauge guess-scale guess-scale--${size}`
       }
-      role="group"
-      aria-label={accessibleLabel}
-      aria-disabled={disabled}
+      disabled={disabled}
     >
+      <legend className="visually-hidden">{accessibleLabel}</legend>
       <div className="scale-gauge__endpoint-layout">
         <Mascot
           character="poop"
@@ -159,6 +158,6 @@ export function GuessScale({
           className="scale-gauge__mascot scale-gauge__mascot--high"
         />
       </div>
-    </div>
+    </fieldset>
   );
 }

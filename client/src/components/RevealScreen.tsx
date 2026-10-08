@@ -238,6 +238,7 @@ export function RevealScreen({
                 <ol
                   className="reveal-result-list"
                   aria-label="Estimations et points gagnés pendant le tour"
+                  // biome-ignore lint/a11y/noNoninteractiveTabindex: la liste défile horizontalement et doit rester accessible au clavier.
                   tabIndex={0}
                 >
                   {reveal.guesses.map((guess) => {

@@ -18,6 +18,7 @@ import { RoomManager } from "./rooms/room-manager.js";
 import { ReconnectManager, type ReconnectManagerOptions } from "./sessions/reconnect-manager.js";
 import { SessionRestorationManager } from "./sessions/session-restoration.js";
 import { registerSocketHandlers } from "./socket/register-socket-handlers.js";
+import { isSocketOriginAllowed } from "./socket/socket-origin-policy.js";
 
 export interface CreateDrawingGameServerOptions {
   serveClient?: boolean;
@@ -25,18 +26,41 @@ export interface CreateDrawingGameServerOptions {
   gameManagerOptions?: GameManagerOptions;
   reconnectGraceMs?: number;
   reconnectManagerOptions?: ReconnectManagerOptions;
+  allowedSocketOrigins?: readonly string[];
+  allowLoopbackSocketOrigins?: boolean;
 }
 
 // A canonical 30,000-point drawing can exceed Engine.IO's 1 MB default once
 // serialized with full-precision coordinates. Keep this finite and comfortably
 // above the largest document allowed by the shared complexity limits.
 export const MAX_SOCKET_MESSAGE_BYTES = 2_500_000;
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'none'",
+  "connect-src 'self' ws: wss:",
+  "font-src 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "img-src 'self' data:",
+  "object-src 'none'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+].join("; ");
 
 export function createDrawingGameServer(options: CreateDrawingGameServerOptions = {}) {
   const app = express();
   const httpServer = createServer(app);
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
+    allowRequest: (request, callback) => {
+      callback(
+        null,
+        isSocketOriginAllowed(request, {
+          allowedOrigins: options.allowedSocketOrigins,
+          allowLoopbackPortMismatch: options.allowLoopbackSocketOrigins,
+        }),
+      );
+    },
   });
   const roomManager = options.roomManager ?? new RoomManager();
   const externalRoomStateListener = options.gameManagerOptions?.onPublicRoomStateChanged;
@@ -99,6 +123,18 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
       throw firstDisposalError;
     }
   };
+
+  app.disable("x-powered-by");
+  app.use((_request, response, next) => {
+    response.set({
+      "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+      "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+    });
+    next();
+  });
 
   app.get("/api/health", (_request, response) => {
     const health: HealthResponse = {

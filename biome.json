@@ -10,16 +10,16 @@
     "rules": {
       "recommended": true,
       "a11y": {
-        "noNoninteractiveTabindex": "off",
-        "noSvgWithoutTitle": "off",
-        "useAriaPropsSupportedByRole": "off",
-        "useSemanticElements": "off"
+        "noNoninteractiveTabindex": "error",
+        "noSvgWithoutTitle": "error",
+        "useAriaPropsSupportedByRole": "error",
+        "useSemanticElements": "error"
       },
       "complexity": {
         "noImportantStyles": "off"
       },
       "correctness": {
-        "useExhaustiveDependencies": "off"
+        "useExhaustiveDependencies": "error"
       },
       "style": {
         "noDescendingSpecificity": "off"
