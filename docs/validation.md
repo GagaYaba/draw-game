@@ -118,3 +118,21 @@ Une recette Playwright temporaire, non conservée dans le dépôt, a utilisé tr
 L’URL `https://drawing-scale-game.onrender.com/` et `/api/health` répondent en HTTP 200. Le client servi référence les mêmes noms de bundles que le build local. Cette comparaison ne permet pas d’identifier le dépôt ni le commit réellement déployé.
 
 Le dépôt local ne contient ni clé API Render, ni identifiant de service, ni deploy hook. Aucun navigateur connecté au compte Render n’était exposé à l’outil d’automatisation. La configuration effective du service, son commit déployé et le réglage **After CI Checks Pass** ne sont donc pas encore vérifiés indépendamment dans Render. Le lien vers `GagaYaba/draw-game` et la branche `develop` restent, à ce stade, l’état communiqué par le propriétaire du service. Aucun déploiement Render n’est déclaré exécuté dans cette section.
+
+### Après fusion dans `develop`
+
+- La PR #2 a été fusionnée au commit `4da5a7507cf211a40f525f392fbc731b179871d7`.
+- La CI déclenchée par le push sur ce commit a réussi : [exécution 37768221983](https://github.com/GagaYaba/draw-game/actions/runs/37768221983). Les sept jobs attendus ont tous conclu `success`.
+- `origin/main` est restée sur `a02b14bf05b28dbcec169da419c937c43466b50f` ; aucune promotion n’a été réalisée.
+- La santé publique a répondu en HTTP 200 et une connexion Socket.IO réelle a reçu `server:pong` après `client:ping`.
+
+La même recette temporaire a ensuite été exécutée sur `https://drawing-scale-game.onrender.com/` avec trois contextes indépendants. Le premier essai a été lancé avant l’établissement de Socket.IO et a reçu le message attendu « Connexion au serveur indisponible ». Le scénario a été corrigé pour attendre l’état connecté, puis a **réussi en 35,4 secondes** :
+
+- Alice a créé le salon, rejoint par Bob et Chloe ;
+- six tours et deux manches ont été joués, avec l’ordre observé Bob, Chloe, Alice, Bob, Chloe, Alice ;
+- chaque tour a couvert dessin, confirmation, estimations, révélation, scores et continuation ;
+- une session de votant a été restaurée après actualisation ;
+- le classement final a annoncé « Victoire de Bob » ;
+- la revanche a ramené les trois sessions au lobby, puis le départ de Chloe a laissé deux joueurs.
+
+Cette réussite démontre le fonctionnement de l’instance publique observée, mais pas le commit qui la sert. Faute d’accès au tableau de bord ou à l’API Render, il reste impossible de confirmer que Render a déployé `4da5a7507cf211a40f525f392fbc731b179871d7`, de lire les commandes et variables effectives, ou de régler et prouver **After CI Checks Pass**. Ce blocage est distinct de la recette fonctionnelle réussie.
