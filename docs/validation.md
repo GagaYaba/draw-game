@@ -289,3 +289,44 @@ Le job E2E prenait 11 min 32 s, dont la majeure partie était l'installation de 
 - PR [#7](https://github.com/GagaYaba/draw-game/pull/7), run [37785154025](https://github.com/GagaYaba/draw-game/actions/runs/37785154025) : job `E2E` réussi en 1 min 21 s.
 - Fusion dans `develop` : commit `08b82a1`, après huit contrôles verts.
 - L'image doit être ré-épinglée à chaque montée de version de `@playwright/test`.
+
+## Lot quotas, bornes de joueurs et tests unitaires — 8 octobre 2026
+
+Branche `feat/abuse-limits-2-6-players`, depuis `develop` (`08b82a1`). Ce lot applique les décisions de `docs/securite.md`.
+
+### Changement de règle
+
+- Salons de **2 à 6 joueurs** (précédemment 3 à 8). Décision du porteur du projet, qui remplace la règle de la reprise initiale.
+- Le serveur refuse le lancement sous 2 joueurs et le septième joueur d'un salon. L'accueil affiche « De 2 à 6 joueurs ».
+- Avec deux joueurs, chaque tour compte un seul votant : la règle de score et l'ordre des tours sont inchangés.
+
+### Quotas implémentés
+
+| Quota | Emplacement | Contrôle |
+| --- | --- | --- |
+| 60 requêtes HTTP par minute et par IP | `server/src/create-server.ts` | Préalable à toutes les routes `/api`. |
+| 5 événements Socket.IO par seconde et par connexion | `server/src/socket/register-socket-handlers.ts` | Middleware `socket.use`, accusé `RATE_LIMITED`. |
+| 30 connexions simultanées par IP | `server/src/create-server.ts`, `server/src/security/socket-guard.ts` | Refus au handshake. |
+| 5 salons par IP et par 24 h | `server/src/socket/register-socket-handlers.ts` | Accusé `RATE_LIMITED` à la création. |
+| 5 échecs par connexion, 20 par IP, sur 15 min | `server/src/socket/register-socket-handlers.ts` | Jonction et restauration. |
+| Fermeture des salons inactifs après 24 h | `server/src/rooms/room-manager.ts`, `server/src/create-server.ts` | Contrôle toutes les 10 minutes. |
+
+Le code d'erreur `RATE_LIMITED` est ajouté à `RoomErrorCode` dans `shared/`.
+
+### Résultats
+
+| Contrôle | Commande ou méthode | Résultat |
+| --- | --- | --- |
+| Tests unitaires | `npm run test:unit` (Node 22.12.0) | **13 réussis, 0 échec** |
+| Qualité | `npm run check` (Node 22.12.0) | Réussi (exit 0) |
+| Partie complète | `npm run test:e2e` (Node 22.12.0) | **1 test réussi** (trois joueurs) |
+| Quotas sur le build de production | Script temporaire, hors dépôt | **5 contrôles sur 5** : 60 requêtes HTTP acceptées puis 429 ; rafale de 12 événements avec refus `RATE_LIMITED` ; 31e connexion refusée depuis la même IP ; 6e création de salon refusée, les cinq premières acceptées. |
+
+Un premier passage du script de contre-vérification comptait mal les requêtes du test lui-même et réutilisait une connexion déjà placée dans un salon : ces erreurs étaient dans le script, pas dans l'application.
+
+### Limites
+
+- Compteurs en mémoire, instance unique sur Render.
+- Une adresse IP partagée (salle de classe) peut atteindre le quota de connexions ou de salons.
+- Pas de mesure de la taille réelle maximale d'un dessin produit par un client.
+- Les tests unitaires ne couvrent pas encore la majorité du code : C2.2.2 reste partiel.

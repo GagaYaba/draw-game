@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { GuessValue, PublicRoomState } from "@drawing-game/shared";
 
-import type { RoomManager } from "../rooms/room-manager.js";
+import { MINIMUM_PLAYERS_TO_START, type RoomManager } from "../rooms/room-manager.js";
 import { RoomManagerError } from "../rooms/room-types.js";
 import { validateSubmitDrawingPayload } from "./drawing-validation.js";
 import { validateSubmitGuessPayload } from "./guess-validation.js";
@@ -200,8 +200,11 @@ export class GameManager {
       throw new RoomManagerError("GAME_ALREADY_STARTED", "Une partie est déjà en cours.");
     }
 
-    if (room.players.length < 3) {
-      throw new RoomManagerError("NOT_ENOUGH_PLAYERS", "Il faut au moins 3 joueurs.");
+    if (room.players.length < MINIMUM_PLAYERS_TO_START) {
+      throw new RoomManagerError(
+        "NOT_ENOUGH_PLAYERS",
+        `Il faut au moins ${MINIMUM_PLAYERS_TO_START} joueurs.`,
+      );
     }
 
     if (!room.players.every((player) => player.isReady)) {

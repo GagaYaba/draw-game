@@ -161,6 +161,30 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+  # Tests unitaires des quotas et des bornes de salon. Hors synthèse Quality
+  # tant qu'il n'est pas ajouté aux protections de branche.
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Use pinned npm version
+        run: npm install --global npm@10.9.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
   # Parcours navigateur complet. Ce contrôle n'entre pas dans la synthèse Quality
   # tant qu'il n'est pas ajouté aux protections de branche.
   e2e:

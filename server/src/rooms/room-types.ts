@@ -30,6 +30,8 @@ export interface InternalRoom {
   code: string;
   players: InternalPlayer[];
   createdAt: number;
+  /** Dernière action connue dans le salon, utilisée pour fermer les salons inactifs. */
+  lastActivityAt: number;
   game: InternalGame | null;
 }
 
