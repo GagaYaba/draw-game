@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  branch-policy:
+    name: Branch policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source and destination branches
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "Branch policy applies to pull requests."
+            exit 0
+          fi
+
+          if [[ "$BASE_REF" == "main" && "$HEAD_REF" != "develop" ]]; then
+            echo "Pull requests to main must come from develop."
+            exit 1
+          fi
+
+          if [[ "$BASE_REF" == "develop" && ! "$HEAD_REF" =~ ^(feat|fix|chore|docs|test|refactor)/.+$ ]]; then
+            echo "Pull requests to develop must use an approved branch prefix."
+            exit 1
+          fi
+
+          echo "Allowed branch transition: $HEAD_REF -> $BASE_REF"
+
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck application
+        run: npm run typecheck
+
+      - name: Build production bundles
+        run: npm run build
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
