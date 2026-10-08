@@ -17,6 +17,14 @@ import type { GameManagerOptions } from "./game/game-types.js";
 import { RoomManager } from "./rooms/room-manager.js";
 import { ReconnectManager, type ReconnectManagerOptions } from "./sessions/reconnect-manager.js";
 import { SessionRestorationManager } from "./sessions/session-restoration.js";
+import { getClientIp } from "./security/client-ip.js";
+import {
+  API_REQUESTS_PER_MINUTE,
+  IDLE_ROOM_SWEEP_INTERVAL_MS,
+  IDLE_ROOM_TTL_MS,
+} from "./security/limits.js";
+import { TokenBucketLimiter } from "./security/rate-limiter.js";
+import { SocketGuard } from "./security/socket-guard.js";
 import { registerSocketHandlers } from "./socket/register-socket-handlers.js";
 import { isSocketOriginAllowed } from "./socket/socket-origin-policy.js";
 
@@ -50,16 +58,23 @@ export const CONTENT_SECURITY_POLICY = [
 export function createDrawingGameServer(options: CreateDrawingGameServerOptions = {}) {
   const app = express();
   const httpServer = createServer(app);
+  const guard = new SocketGuard();
+  const apiLimiter = new TokenBucketLimiter({
+    capacity: API_REQUESTS_PER_MINUTE,
+    refillIntervalMs: 60_000 / API_REQUESTS_PER_MINUTE,
+  });
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,
     allowRequest: (request, callback) => {
-      callback(
-        null,
-        isSocketOriginAllowed(request, {
-          allowedOrigins: options.allowedSocketOrigins,
-          allowLoopbackPortMismatch: options.allowLoopbackSocketOrigins,
-        }),
+      const clientIp = getClientIp(
+        request.headers["x-forwarded-for"],
+        request.socket.remoteAddress,
       );
+      const originAllowed = isSocketOriginAllowed(request, {
+        allowedOrigins: options.allowedSocketOrigins,
+        allowLoopbackPortMismatch: options.allowLoopbackSocketOrigins,
+      });
+      callback(null, originAllowed && guard.canAcceptConnection(clientIp));
     },
   });
   const roomManager = options.roomManager ?? new RoomManager();
@@ -136,6 +151,18 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
     next();
   });
 
+  app.use("/api", (request, response, next) => {
+    const decision = apiLimiter.consume(
+      getClientIp(request.headers["x-forwarded-for"], request.socket.remoteAddress),
+    );
+    if (!decision.allowed) {
+      response.set("Retry-After", String(Math.ceil(decision.retryAfterMs / 1000)));
+      response.status(429).json({ error: "Trop de requêtes. Réessayez dans un instant." });
+      return;
+    }
+    next();
+  });
+
   app.get("/api/health", (_request, response) => {
     const health: HealthResponse = {
       status: "ok",
@@ -149,8 +176,34 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
     response.status(404).json({ error: "API route not found" });
   });
 
-  registerSocketHandlers(io, roomManager, gameManager, reconnectManager, sessionRestorationManager);
-  httpServer.once("close", dispose);
+  registerSocketHandlers(
+    io,
+    roomManager,
+    gameManager,
+    reconnectManager,
+    sessionRestorationManager,
+    guard,
+  );
+
+  const maintenanceTimer = setInterval(() => {
+    try {
+      for (const closed of roomManager.closeIdleRooms(IDLE_ROOM_TTL_MS)) {
+        gameManager.cancelGame(closed.roomCode);
+        reconnectManager.clearRoomReconnectTimers(closed.roomCode);
+        io.in(closed.roomCode).socketsLeave(closed.roomCode);
+      }
+      apiLimiter.sweep();
+      guard.sweep();
+    } catch (error) {
+      console.error("[maintenance] Idle room sweep failed", error);
+    }
+  }, IDLE_ROOM_SWEEP_INTERVAL_MS);
+  maintenanceTimer.unref();
+
+  httpServer.once("close", () => {
+    clearInterval(maintenanceTimer);
+    dispose();
+  });
 
   if (options.serveClient !== false) {
     const currentDirectory = dirname(fileURLToPath(import.meta.url));

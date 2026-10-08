@@ -216,6 +216,7 @@ export type RoomErrorCode =
   | "DRAWING_ALREADY_SUBMITTED"
   | GuessErrorCode
   | SessionErrorCode
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export type ActionResult<T> =

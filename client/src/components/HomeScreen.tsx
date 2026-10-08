@@ -50,7 +50,7 @@ export function HomeScreen({
             <p className="eyebrow">Nouveau salon</p>
             <h2 id="welcome-title">Rejoignez la table de jeu</h2>
           </div>
-          <span className="capacity-note">De 1 à 8 joueurs</span>
+          <span className="capacity-note">De 2 à 6 joueurs</span>
         </div>
 
         <div className="field field--nickname">

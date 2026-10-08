@@ -18,6 +18,8 @@ import type { Server } from "socket.io";
 
 import type { GameManager } from "../game/game-manager.js";
 import { type RoomManager, RoomManagerError } from "../rooms/room-manager.js";
+import { getClientIp } from "../security/client-ip.js";
+import type { SocketGuard } from "../security/socket-guard.js";
 import type { ReconnectManager } from "../sessions/reconnect-manager.js";
 import type { SessionRestorationManager } from "../sessions/session-restoration.js";
 import { validateRestoreSessionPayload } from "../sessions/session-validation.js";
@@ -29,6 +31,9 @@ import {
 } from "./validate-room-payloads.js";
 
 type DrawingGameIo = Server<ClientToServerEvents, ServerToClientEvents>;
+
+/** Délai indicatif renvoyé lorsque la création de salons est refusée pour la journée. */
+const ROOM_CREATION_RETRY_HINT_MS = 60 * 60 * 1000;
 
 interface ActionRequest<T> {
   payload: unknown;
@@ -68,6 +73,20 @@ function isClientPingPayload(payload: unknown): payload is ClientPingPayload {
   );
 }
 
+function rateLimited<T>(retryAfterMs: number): ActionResult<T> {
+  return {
+    success: false,
+    error: {
+      code: "RATE_LIMITED",
+      message: `Trop de requêtes. Réessayez dans ${Math.ceil(retryAfterMs / 1000)} s.`,
+    },
+  };
+}
+
+function getFailureCode(error: unknown): string | null {
+  return error instanceof RoomManagerError ? error.code : null;
+}
+
 function actionFailure<T>(error: unknown): ActionResult<T> {
   if (error instanceof RoomManagerError) {
     return {
@@ -92,9 +111,30 @@ export function registerSocketHandlers(
   gameManager: GameManager,
   reconnectManager: ReconnectManager,
   sessionRestorationManager: SessionRestorationManager,
+  guard: SocketGuard,
 ) {
   io.on("connection", (socket) => {
+    const clientIp = getClientIp(
+      socket.handshake.headers["x-forwarded-for"],
+      socket.handshake.address,
+    );
+    guard.registerConnection(clientIp);
     console.info(`[socket] Client connected: ${socket.id}`);
+
+    // Chaque événement consomme un jeton ; au-delà du débit autorisé, il est refusé.
+    socket.use((event, next) => {
+      const decision = guard.consumeEvent(socket.id);
+      if (decision.allowed) {
+        roomManager.touchRoomBySocketId(socket.id);
+        next();
+        return;
+      }
+
+      const acknowledgement = event.at(-1);
+      if (isActionAcknowledgement(acknowledgement)) {
+        acknowledgement(rateLimited(decision.retryAfterMs));
+      }
+    });
 
     socket.on(SOCKET_EVENTS.CLIENT_PING, (payload) => {
       if (!isClientPingPayload(payload)) {
@@ -119,6 +159,11 @@ export function registerSocketHandlers(
         return;
       }
 
+      if (!guard.canCreateRoom(clientIp)) {
+        request.acknowledge(rateLimited(ROOM_CREATION_RETRY_HINT_MS));
+        return;
+      }
+
       let session: RoomSessionData;
       try {
         session = roomManager.createRoom(
@@ -126,6 +171,7 @@ export function registerSocketHandlers(
           validation.data.nickname,
           validation.data.clientInstanceId,
         );
+        guard.recordRoomCreated(clientIp);
       } catch (error) {
         request.acknowledge(actionFailure(error));
         return;
@@ -152,8 +198,14 @@ export function registerSocketHandlers(
         return;
       }
 
+      if (guard.isAccessBlocked(socket.id, clientIp)) {
+        request.acknowledge(rateLimited(guard.retryAccessAfterMs(socket.id, clientIp)));
+        return;
+      }
+
       const validation = validateJoinRoomPayload(request.payload);
       if (!validation.success) {
+        guard.recordAccessFailure(socket.id, clientIp, validation.error.code);
         request.acknowledge(validation);
         return;
       }
@@ -167,6 +219,7 @@ export function registerSocketHandlers(
           validation.data.clientInstanceId,
         );
       } catch (error) {
+        guard.recordAccessFailure(socket.id, clientIp, getFailureCode(error));
         request.acknowledge(actionFailure(error));
         return;
       }
@@ -192,8 +245,14 @@ export function registerSocketHandlers(
         return;
       }
 
+      if (guard.isAccessBlocked(socket.id, clientIp)) {
+        request.acknowledge(rateLimited(guard.retryAccessAfterMs(socket.id, clientIp)));
+        return;
+      }
+
       const validation = validateRestoreSessionPayload(request.payload);
       if (!validation.success) {
+        guard.recordAccessFailure(socket.id, clientIp, validation.error.code);
         request.acknowledge(validation);
         return;
       }
@@ -205,6 +264,7 @@ export function registerSocketHandlers(
           validation.data,
         ).roomCode;
       } catch (error) {
+        guard.recordAccessFailure(socket.id, clientIp, getFailureCode(error));
         request.acknowledge(actionFailure(error));
         return;
       }
@@ -419,6 +479,8 @@ export function registerSocketHandlers(
     });
 
     socket.on("disconnect", (reason) => {
+      guard.releaseConnection(clientIp);
+      guard.forgetSocket(socket.id);
       const disconnection =
         reason === "server shutting down" || !roomManager.isActivePlayerSocket(socket.id)
           ? null

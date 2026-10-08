@@ -50,8 +50,8 @@ export type {
   SessionRestoreCandidate,
 } from "./room-types.js";
 
-export const MAX_PLAYERS = 8;
-export const MINIMUM_PLAYERS_TO_START = 3;
+export const MAX_PLAYERS = 6;
+export const MINIMUM_PLAYERS_TO_START = 2;
 
 const DEFAULT_MAX_CODE_GENERATION_ATTEMPTS = 100;
 
@@ -107,6 +107,7 @@ export class RoomManager {
       code,
       players: [player],
       createdAt: timestamp,
+      lastActivityAt: timestamp,
       game: null,
     };
 
@@ -177,6 +178,41 @@ export class RoomManager {
         token,
       },
     };
+  }
+
+  /** Marque le salon de cette connexion comme actif. */
+  touchRoomBySocketId(socketId: string): void {
+    const roomCode = this.roomCodeBySocketId.get(socketId);
+    const room = roomCode === undefined ? undefined : this.rooms.get(roomCode);
+    if (room !== undefined) {
+      room.lastActivityAt = this.clock();
+    }
+  }
+
+  /**
+   * Retire les salons sans activité depuis `ttlMs` et renvoie leurs codes et
+   * connexions, pour que l'appelant puisse annuler les minuteries et notifier.
+   */
+  closeIdleRooms(ttlMs: number): { roomCode: string; socketIds: string[] }[] {
+    const threshold = this.clock() - ttlMs;
+    const closed: { roomCode: string; socketIds: string[] }[] = [];
+
+    for (const room of [...this.rooms.values()]) {
+      if (room.lastActivityAt > threshold) {
+        continue;
+      }
+
+      const socketIds = room.players
+        .map((player) => player.socketId)
+        .filter((socketId): socketId is string => socketId !== null);
+      for (const socketId of socketIds) {
+        this.roomCodeBySocketId.delete(socketId);
+      }
+      this.rooms.delete(room.code);
+      closed.push({ roomCode: room.code, socketIds });
+    }
+
+    return closed;
   }
 
   leaveRoom(socketId: string): RoomDepartureResult {
