@@ -273,10 +273,19 @@ Exécution sous Node `22.12.0` (npm `11.9.0` localement, `10.9.0` en CI) :
 
 - `npm run check` : réussi (exit 0).
 - `npm run test:e2e` : **1 test réussi**, 33,3 s pour le scénario.
+- CI : PR [#6](https://github.com/GagaYaba/draw-game/pull/6), run [37781100957](https://github.com/GagaYaba/draw-game/actions/runs/37781100957) : job `E2E` réussi en 11 min 32 s, installation de Chromium comprise.
+- Fusion dans `develop` : commit `5a696ff`, après huit contrôles verts.
 
 ### Limites
 
 - Un seul scénario d'ensemble. Les refus d'autorisation, l'expiration du délai de reconnexion et les erreurs de saisie ne sont pas encore couverts par E2E ; ils restent à traiter.
 - La restauration est testée par actualisation, pas par coupure réseau réelle.
-- Le job CI `E2E` n'a pas encore été exécuté sur GitHub au moment de la rédaction ; le résultat sera consigné après la PR.
 - Un contrôle de non-régression (une mutation volontaire du comportement de restauration) n'a pas encore été exécuté.
+
+### Accélération du job E2E
+
+Le job E2E prenait 11 min 32 s, dont la majeure partie était l'installation de Chromium et de ses dépendances système (`playwright install --with-deps`). Le job tourne désormais dans l'image officielle `mcr.microsoft.com/playwright:v1.56.1-noble`, dont la version suit celle de `@playwright/test`.
+
+- PR [#7](https://github.com/GagaYaba/draw-game/pull/7), run [37785154025](https://github.com/GagaYaba/draw-game/actions/runs/37785154025) : job `E2E` réussi en 1 min 21 s.
+- Fusion dans `develop` : commit `08b82a1`, après huit contrôles verts.
+- L'image doit être ré-épinglée à chaque montée de version de `@playwright/test`.
