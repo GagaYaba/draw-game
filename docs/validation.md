@@ -193,3 +193,59 @@ Environnement : Windows/PowerShell, Node `22.12.0`, npm `10.9.0`, Playwright tem
 - Tête contrôlée : `bd4492f5915cadc430d948143edf4de69a939f08`, qui contient le commit applicatif contre-testé et la consolidation documentaire initiale.
 - Exécution CI : [37773512720](https://github.com/GagaYaba/draw-game/actions/runs/37773512720), sept contrôles réussis le 8 octobre 2026 : `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Branch policy` et `Quality`.
 - `origin/develop` reste sur `5807a1c9748dfa68efee84493af75b28f91d8c77` et `origin/main` sur `a02b14bf05b28dbcec169da419c937c43466b50f` ; la PR n'est pas fusionnée dans ce lot.
+
+## Lot de revue applicative et vérification — 8 octobre 2026
+
+Branche `chore/bloc2-review-evidence`, créée depuis `fix/application-hardening` au commit `2899673` (PR [#4](https://github.com/GagaYaba/draw-game/pull/4), non fusionnée à la date de ce lot). Ce lot ne modifie aucun comportement applicatif : il vérifie le lot précédent et corrige une reproductibilité de l'environnement Windows.
+
+### Point de départ constaté
+
+- `develop` : `5807a1c9748dfa68efee84493af75b28f91d8c77` ; `main` : `a02b14bf05b28dbcec169da419c937c43466b50f` ; le lot de corrections existe localement et sur `origin/fix/application-hardening` au commit `2899673`.
+- La grille `docs/context/Grille_evaluation_RNCP39583.xlsx`, onglet « Grille Eval Bloc 2 », a été lue en lecture seule : 9 compétences et 26 critères, dans l'ordre et avec la formulation de `docs/bloc2.md`. Aucun écart n'a été relevé.
+- Versions d'exécution : Node `22.12.0` (version épinglée) ; npm `11.9.0` utilisé avec ce Node, au lieu de `10.9.0` épinglé. Un passage d'installation antérieur avait été fait avec Node `24.14.0`.
+
+### Défaut reproduit — fins de ligne Windows
+
+| Élément | Constat |
+| --- | --- |
+| Reproduction | Clone neuf sous Git for Windows (`core.autocrlf=true`) : 96 fichiers suivis reçus en CRLF ; `biome format` échoue (exit 1, 86 erreurs). |
+| Cause | Le dépôt ne déclare aucune politique de fins de ligne ; l'index est en LF, Biome attend LF. |
+| Gravité | Environnement de développement : aucun effet sur le code exécuté ni sur la CI Linux, mais le contrôle `Formatting` échoue pour tout clone Windows par défaut. |
+| Correction | Ajout de `.gitattributes` avec `* text=auto eol=lf` (commit `784d11a`). |
+| Contre-test | Clone neuf avec `core.autocrlf=true` sur la branche corrigée : fichiers reçus en LF (97 suivis en LF, binaires exclus) ; `biome format` réussit (86 fichiers, exit 0). |
+
+### Contrôles exécutés
+
+| Contrôle | Résultat observé |
+| --- | --- |
+| `npm run check` sous Node `22.12.0` | Réussi (exit 0) : formatage 86 fichiers, lint, typecheck des trois workspaces, build. Bundle principal 329,79 kB, 98,15 kB gzip ; CSS 81,92 kB, 15,76 kB gzip. |
+| `npm ci` sous Node `24.14.0` (passage antérieur du lot) | Réussi, 0 vulnérabilité. |
+| Relecture du code serveur (autorisations, phases, restauration, départ, expiration, origine WebSocket, validations de dessin et d'estimation) | Aucun défaut applicatif reproduit au-delà des constats du lot précédent. |
+| Parcours socket réel sur le build de production, contre-vérification temporaire | **69 vérifications sur 69 réussies** (voir ci-dessous). |
+
+Le script de contre-vérification est temporaire, hors dépôt, conformément à `AGENTS.md` ; il n'est pas une suite permanente. Il couvre, sur un serveur `NODE_ENV=production` construit :
+
+- en-têtes HTTP de sécurité et absence de `X-Powered-By` ; origine étrangère refusée au handshake WebSocket, même hôte accepté ;
+- création, jonction, doublon de pseudonyme insensible à la casse, code inconnu, socket déjà dans un salon ;
+- prêt, refus du lancement par un non-hôte et avant que tous soient prêts ; un seul destinataire du secret de tour ;
+- absence de `secretLevel` dans l'état public avant la révélation ;
+- refus du dessin hors phase, par un non-dessinateur, au-delà de 250 traits, en second envoi ;
+- refus de l'estimation du dessinateur, d'un tour périmé, d'une valeur hors 1–10, d'un doublon et d'une estimation tardive après révélation ;
+- continuation refusée à un non-hôte ; parcours complet de six tours, classement final `FINISHED`, revanche refusée à un non-hôte puis acceptée pour l'hôte, retour au salon ;
+- restauration avec un joueur inconnu refusée ; départs de deux joueurs du salon.
+
+Non couverts par ce script : restauration avec le bon jeton après déconnexion réelle, expiration du délai de reconnexion, interface navigateur et limites maximales du canevas. Ces parcours restent dans les lots E2E et de recette.
+
+### Constats retenus sans correction dans ce lot
+
+| Constat | Catégorie | Décision |
+| --- | --- | --- |
+| `session:restore` quitte sans accusé de réception si le socket est déconnecté entre la validation et la restauration (`server/src/socket/register-socket-handlers.ts`). Le client attend alors le délai de 8 s puis réessaie. | Risque faible, non reproduit. | À traiter lors de la suite E2E de restauration ; aucune correction sans reproduction. |
+| `startGame` compare le nombre de joueurs à la constante `3` au lieu de `MINIMUM_PLAYERS_TO_START` (`server/src/game/game-manager.ts`). | Amélioration facultative ; le comportement est identique. | Remplacer à la prochaine modification du fichier. |
+| Aucun quota de salons, de connexions ou de messages par IP ou compte. | Décision produit et infrastructure, déjà consignée. | Inchangé. |
+
+### Vérifications non exécutées
+
+- Aucun passage sous npm `10.9.0` (non disponible dans cet environnement de travail).
+- Aucune vérification du tableau de bord Render ni du commit servi : le constat précédent reste valable.
+- Aucune ouverture de PR : l'outil GitHub CLI n'est pas installé dans cet environnement.
