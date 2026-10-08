@@ -20,7 +20,7 @@
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run build",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:unit": "npm run test --workspace=@drawing-game/server"
+    "test:unit": "npm run build --workspace=@drawing-game/shared && npm run test --workspace=@drawing-game/server"
   },
   "engines": {
     "node": ">=22.12.0 <23.0.0",
