@@ -1,4 +1,4 @@
-# Validation du premier lot
+# Validation des lots
 
 Ce document ne contient que des contrôles réellement exécutés sur la branche `chore/reprise-drawing-game`. Le code applicatif testé correspond au commit `1bb581b70a13b766a166e802a650606bd0e2b6c7`, complété par le correctif CI `5ee812811951f39ccdcf11a9137bd2b7d5552668`. Le commit suivant ne modifie que cette preuve de validation.
 
@@ -72,3 +72,49 @@ Les deux premiers essais du scénario se sont arrêtés sur les dialogues de con
 - tests structurels et de sécurité du futur cahier de recettes.
 
 Ces parcours restent à intégrer aux lots E2E, accessibilité, sécurité et recette décrits dans `docs/bloc2.md`.
+
+## Lot CI/CD et autonomie du dépôt — 8 octobre 2026
+
+La branche `chore/ci-cd-render`, créée depuis le commit de fusion `develop` `4ee04aad0d8f70eec30f138231ec60a7123039d9`, introduit la CI séparée au commit `289dcdee67adad0a9a7977afe1840fedfbdf65b0`.
+
+### CI et protections
+
+- PR : [#2](https://github.com/GagaYaba/draw-game/pull/2).
+- Exécution CI de la PR : [37767531874](https://github.com/GagaYaba/draw-game/actions/runs/37767531874), réussie le 8 octobre 2026.
+- Jobs réussis : `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Branch policy` et synthèse `Quality`.
+- Les protections de `develop` et `main` exigent ces sept contrôles, une branche à jour, une PR et la résolution des conversations. Elles s’appliquent aux administrateurs, sans approbation obligatoire, sans force-push ni suppression de branche protégée.
+- Le workflow couvre désormais les PR et les pushes vers `develop` et `main`, ainsi que le déclenchement manuel.
+
+### Clone autonome
+
+Un clone propre de `draw-game` a été créé sous le répertoire temporaire Windows, hors de `rncp-game` et donc hors de tout dossier pouvant contenir `drawing-game`.
+
+| Contrôle | Résultat observé |
+| --- | --- |
+| Liens symboliques suivis par Git | Aucun fichier de mode `120000`. |
+| Dépendances de paquet externes | Aucun protocole `file:` ou `link:` ni chemin parent dans les manifests et le lockfile. |
+| Runtime | Node `22.12.0`, npm `10.9.0`. |
+| Installation | `npm ci` réussi, 133 paquets ajoutés, 0 vulnérabilité. |
+| Formatage | 85 fichiers vérifiés, aucune correction requise. |
+| Lint | 75 fichiers vérifiés, aucun diagnostic. |
+| Typecheck | `shared`, `server` et `client` réussis. |
+| Build | Trois workspaces réussis ; bundle client principal 328,47 kB, 97,97 kB gzip. |
+| Audit | `npm audit --audit-level=high` réussi, 0 vulnérabilité. |
+| Version construite | `npm start` avec `NODE_ENV=production` et un port temporaire : client HTTP 200. |
+| Santé | HTTP 200, `{"status":"ok","service":"drawing-game-server"}`. |
+| Socket.IO | Connexion WebSocket réelle, émission `client:ping` et réception `server:pong`. |
+
+Une recette Playwright temporaire, non conservée dans le dépôt, a utilisé trois contextes Chromium indépendants sur ce clone. Résultat : **réussie en 34,1 secondes**.
+
+- salon créé par Alice, rejoint par Bob et Chloe ; trois joueurs prêts et lancement par l’hôte ;
+- six tours et deux manches complètes, avec l’ordre observé Chloe, Bob, Alice, Chloe, Bob, Alice ;
+- dessin vectoriel, confirmation, deux estimations confirmées, révélation, scores et continuation à chaque tour ;
+- session d’un votant restaurée après actualisation pendant la première estimation ;
+- classement final « Victoire partagée » visible, revanche ramenant les trois sessions au lobby ;
+- départ de Chloe, retour de sa session à l’accueil et lobby restant à deux joueurs.
+
+### État public et accès Render avant fusion
+
+L’URL `https://drawing-scale-game.onrender.com/` et `/api/health` répondent en HTTP 200. Le client servi référence les mêmes noms de bundles que le build local. Cette comparaison ne permet pas d’identifier le dépôt ni le commit réellement déployé.
+
+Le dépôt local ne contient ni clé API Render, ni identifiant de service, ni deploy hook. Aucun navigateur connecté au compte Render n’était exposé à l’outil d’automatisation. La configuration effective du service, son commit déployé et le réglage **After CI Checks Pass** ne sont donc pas encore vérifiés indépendamment dans Render. Le lien vers `GagaYaba/draw-game` et la branche `develop` restent, à ce stade, l’état communiqué par le propriétaire du service. Aucun déploiement Render n’est déclaré exécuté dans cette section.

@@ -68,8 +68,24 @@ L’amorçage exceptionnel du dépôt a créé `main` et `develop` sur le même 
 - les préfixes admis sont `feat/`, `fix/`, `chore/`, `docs/`, `test/` et `refactor/` ;
 - une PR de travail cible `develop` ;
 - une livraison stable passe uniquement par une PR `develop` vers `main` ;
-- les contrôles requis sont `Quality` et `Branch policy` ;
+- les contrôles requis sont `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Quality` et `Branch policy` ;
 - la branche doit être à jour, les conversations résolues et les protections s’appliquent aussi aux administrateurs ;
 - aucune approbation d’un second contributeur n’est requise pour ce projet individuel.
 
-Le workflow unique `.github/workflows/ci.yml` installe avec `npm ci`, vérifie le formatage, le lint, TypeScript, le build, l’audit des dépendances et la politique de branche. Les futurs déploiements utiliseront des étapes séparées de validation, déploiement de test, vérification post-déploiement et promotion stable avec rollback documenté. Ce premier lot ne modifie aucun environnement Render ou de production.
+Le workflow unique `.github/workflows/ci.yml` s’exécute sur les PR et les pushes vers `develop` et `main`, ainsi que manuellement. Chaque contrôle applicatif utilise Node `22.12.0`, npm `10.9.0`, le lockfile et `npm ci`. `Quality` synthétise les cinq contrôles applicatifs et échoue si l’un d’eux échoue, est annulé ou est ignoré.
+
+## Déploiement Render sur `develop`
+
+Pendant ce lot, le service existant qui conserve l’URL publique reste lié à `GagaYaba/draw-game`, branche `develop`. La promotion vers `main` est différée et `main` reste sur son commit d’amorçage.
+
+Configuration attendue pour le monorepo :
+
+- répertoire racine vide, afin que les workspaces `client`, `server` et `shared` restent accessibles ;
+- runtime Node défini par `.node-version`, soit `22.12.0` ;
+- commande de build : `npm ci && npm run build` ;
+- commande de démarrage : `npm start` ;
+- health check : `/api/health` ;
+- `PORT` fourni par Render, `NODE_ENV=production` et `PLAYER_RECONNECT_GRACE_MS` facultatif ;
+- déploiement automatique unique : Render, réglé sur **After CI Checks Pass**. Aucun second workflow GitHub ne déclenche le même déploiement.
+
+Après chaque fusion dans `develop`, la CI doit réussir sur le commit de fusion avant que Render ne le déploie. La vérification post-déploiement couvre la santé HTTP, Socket.IO et une partie navigateur complète. Pour revenir en arrière, utiliser l’historique **Deploys** du service afin de redéployer la dernière version réussie, puis vérifier `/api/health` et Socket.IO. Render désactive le déploiement automatique après un rollback ; le réactiver sur **After CI Checks Pass** une fois l’incident traité.
