@@ -1,0 +1,31 @@
+{
+  "name": "drawing-scale-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Technical foundation for an online multiplayer drawing game.",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "predev": "npm run build --workspace=@drawing-game/shared",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build --workspace=@drawing-game/shared && npm run build --workspace=@drawing-game/server && npm run build --workspace=@drawing-game/client",
+    "start": "npm run start --workspace=@drawing-game/server",
+    "typecheck": "npm run typecheck --workspace=@drawing-game/shared && npm run typecheck --workspace=@drawing-game/server && npm run typecheck --workspace=@drawing-game/client",
+    "format": "biome format --write client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
+    "format:check": "biome format client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
+    "lint": "biome lint client/src server/src shared/src scripts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build"
+  },
+  "engines": {
+    "node": ">=22.12.0 <23.0.0",
+    "npm": ">=10.9.0 <11.0.0"
+  },
+  "packageManager": "npm@10.9.0",
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "typescript": "7.0.2"
+  }
+}

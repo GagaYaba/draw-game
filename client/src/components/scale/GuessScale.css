@@ -1,0 +1,151 @@
+.guess-scale {
+  min-width: 0;
+}
+
+.guess-scale--compact {
+  container-type: inline-size;
+}
+
+.guess-scale__visual-track {
+  height: 1.25rem;
+}
+
+.guess-scale--full .guess-scale__full-visual {
+  display: none;
+}
+
+.guess-scale--full .guess-scale__full-options {
+  height: 3rem;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.guess-scale__option-grid {
+  display: grid;
+  min-width: 0;
+  margin-top: 0.45rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.guess-scale__option {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-ink, #172033);
+  cursor: pointer;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.guess-scale__option-grid .guess-scale__option {
+  min-height: 2.75rem;
+  border: 2px solid var(--color-border-muted, rgba(23, 32, 51, 0.22));
+  border-radius: 0.55rem;
+}
+
+.guess-scale__full-options .guess-scale__option {
+  min-height: 2.75rem;
+}
+
+.guess-scale__option:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.guess-scale__option:focus-visible {
+  z-index: 2;
+  outline: 3px solid var(--color-ink, #172033);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.guess-scale__level {
+  display: grid;
+  width: clamp(1.15rem, 5vw, 1.45rem);
+  height: clamp(1.15rem, 5vw, 1.45rem);
+  place-items: center;
+  border: 1px solid var(--color-border, rgba(23, 32, 51, 0.25));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: clamp(0.62rem, 2.5vw, 0.76rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.guess-scale__option[aria-pressed="true"] .guess-scale__level {
+  border-color: #fff;
+  color: #fff;
+  background: var(--color-purple-dark, #172033);
+  box-shadow: 0 0 0 2px var(--color-ink, #172033);
+}
+
+.guess-scale--disabled .guess-scale__track,
+.guess-scale--disabled .guess-scale__option-grid {
+  opacity: 0.72;
+}
+
+.guess-scale__option:disabled {
+  cursor: not-allowed;
+}
+
+.guess-scale__value-text {
+  min-height: 2.25rem;
+}
+
+.guess-scale--compact .guess-scale__value-text {
+  min-height: 0;
+  margin-top: 0.5rem;
+  padding-block: 0.35rem;
+}
+
+@container (min-width: 15.5rem) {
+  .guess-scale__option-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 899px) {
+  .guess-scale--full .guess-scale__full-visual {
+    display: grid;
+  }
+
+  .guess-scale--full .guess-scale__full-options {
+    height: auto;
+    margin-top: 0.4rem;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.3rem;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .guess-scale--full .guess-scale__full-options .guess-scale__option {
+    min-height: 2.75rem;
+    border: 2px solid var(--color-border-muted, rgba(23, 32, 51, 0.22));
+    border-radius: 0.55rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .guess-scale--full .guess-scale__level {
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guess-scale__option {
+    transition: none;
+  }
+}
