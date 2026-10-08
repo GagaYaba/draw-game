@@ -14,8 +14,8 @@
     "build": "npm run build --workspace=@drawing-game/shared && npm run build --workspace=@drawing-game/server && npm run build --workspace=@drawing-game/client",
     "start": "npm run start --workspace=@drawing-game/server",
     "typecheck": "npm run typecheck --workspace=@drawing-game/shared && npm run typecheck --workspace=@drawing-game/server && npm run typecheck --workspace=@drawing-game/client",
-    "format": "biome format --write client server shared scripts .github package.json tsconfig.base.json biome.json",
-    "format:check": "biome format client server shared scripts .github package.json tsconfig.base.json biome.json",
+    "format": "biome format --write client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
+    "format:check": "biome format client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
     "lint": "biome lint client/src server/src shared/src scripts",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run build"
   },
