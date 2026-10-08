@@ -186,3 +186,10 @@ Environnement : Windows/PowerShell, Node `22.12.0`, npm `10.9.0`, Playwright tem
 - Aucun audit OWASP Top 10 complet, référentiel d'accessibilité, lecteur d'écran, matrice clavier, mesure de contraste ou test d'agrandissement n'a été exécuté.
 - Les quotas d'abus globaux, la saturation par connexions distribuées, la limite exacte à huit joueurs, le neuvième refusé et la charge maximale de 2,5 Mo n'ont pas été contre-testés dans ce lot.
 - La recette post-correction a été exécutée localement sur le serveur de production construit. L'instance Render sert encore `develop` tant que la PR n'est pas fusionnée ; aucune configuration Render, branche protégée, `main` ou ancien dépôt n'a été modifié.
+
+### Livraison GitHub
+
+- PR : [#4](https://github.com/GagaYaba/draw-game/pull/4), branche `fix/application-hardening` vers `develop`, non brouillon et déclarée fusionnable avec l'état `clean`.
+- Tête contrôlée : `bd4492f5915cadc430d948143edf4de69a939f08`, qui contient le commit applicatif contre-testé et la consolidation documentaire initiale.
+- Exécution CI : [37773512720](https://github.com/GagaYaba/draw-game/actions/runs/37773512720), sept contrôles réussis le 8 octobre 2026 : `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Branch policy` et `Quality`.
+- `origin/develop` reste sur `5807a1c9748dfa68efee84493af75b28f91d8c77` et `origin/main` sur `a02b14bf05b28dbcec169da419c937c43466b50f` ; la PR n'est pas fusionnée dans ce lot.
