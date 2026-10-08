@@ -10,3 +10,7 @@ dist/
 .DS_Store
 coverage/
 reports/
+
+# Playwright
+test-results/
+playwright-report/

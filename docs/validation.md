@@ -249,3 +249,34 @@ Non couverts par ce script : restauration avec le bon jeton après déconnexion 
 - Aucun passage sous npm `10.9.0` (non disponible dans cet environnement de travail).
 - Aucune vérification du tableau de bord Render ni du commit servi : le constat précédent reste valable.
 - Aucune ouverture de PR : l'outil GitHub CLI n'est pas installé dans cet environnement.
+
+## Lot E2E des parcours principaux — 8 octobre 2026
+
+Branche `test/e2e-main-paths`, créée depuis `develop` (`979255d`). Ce lot ajoute une suite E2E permanente, sans modifier le comportement applicatif.
+
+### Outillage
+
+- `@playwright/test` `1.56.1` (version exacte) en dépendance de développement ; navigateur Chromium `141.0.7390.37` (`chromium-1194`).
+- `playwright.config.ts` : un worker, une partie par scénario, serveur lancé sur le build de production (`npm run build && npm start`, port `3480`).
+- Commande : `npm run test:e2e`. Les fichiers `e2e/` sont inclus dans `format:check` et `lint`.
+- Job CI `E2E` ajouté dans `.github/workflows/ci.yml` : il n'entre pas dans la synthèse `Quality`, car les protections de branche ne l'exigent pas encore.
+
+### Scénarios
+
+| Fichier | Parcours couvert | Vérifications principales |
+| --- | --- | --- |
+| `e2e/main-game.spec.ts` | Salon à trois joueurs, prêt, lancement, deux manches (six tours), restauration d'un votant après actualisation pendant son estimation, classement final, revanche, départ d'un joueur. | Chaque joueur voit les autres ; seul l'hôte lance ; le votant retrouve son formulaire après actualisation et peut voter ; les estimations sont révélées ; la revanche ramène les trois sessions au salon ; un départ retire le joueur du salon. Aucune erreur de page ni de console. |
+
+### Résultat
+
+Exécution sous Node `22.12.0` (npm `11.9.0` localement, `10.9.0` en CI) :
+
+- `npm run check` : réussi (exit 0).
+- `npm run test:e2e` : **1 test réussi**, 33,3 s pour le scénario.
+
+### Limites
+
+- Un seul scénario d'ensemble. Les refus d'autorisation, l'expiration du délai de reconnexion et les erreurs de saisie ne sont pas encore couverts par E2E ; ils restent à traiter.
+- La restauration est testée par actualisation, pas par coupure réseau réelle.
+- Le job CI `E2E` n'a pas encore été exécuté sur GitHub au moment de la rédaction ; le résultat sera consigné après la PR.
+- Un contrôle de non-régression (une mutation volontaire du comportement de restauration) n'a pas encore été exécuté.

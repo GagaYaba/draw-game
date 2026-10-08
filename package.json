@@ -14,10 +14,11 @@
     "build": "npm run build --workspace=@drawing-game/shared && npm run build --workspace=@drawing-game/server && npm run build --workspace=@drawing-game/client",
     "start": "npm run start --workspace=@drawing-game/server",
     "typecheck": "npm run typecheck --workspace=@drawing-game/shared && npm run typecheck --workspace=@drawing-game/server && npm run typecheck --workspace=@drawing-game/client",
-    "format": "biome format --write client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
-    "format:check": "biome format client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts .github package.json tsconfig.base.json biome.json",
-    "lint": "biome lint client/src server/src shared/src scripts",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build"
+    "format": "biome format --write client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts e2e playwright.config.ts .github package.json tsconfig.base.json biome.json",
+    "format:check": "biome format client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts e2e playwright.config.ts .github package.json tsconfig.base.json biome.json",
+    "lint": "biome lint client/src server/src shared/src scripts e2e playwright.config.ts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build",
+    "test:e2e": "playwright test"
   },
   "engines": {
     "node": ">=22.12.0 <23.0.0",
@@ -26,6 +27,7 @@
   "packageManager": "npm@10.9.0",
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.56.1",
     "typescript": "7.0.2"
   }
 }
