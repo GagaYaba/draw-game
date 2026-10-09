@@ -16,9 +16,13 @@ import {
 
 const servers: TestServer[] = [];
 const clients: TestClient[] = [];
+const securityEvents: string[] = [];
 
 async function newServer(options: Parameters<typeof startServer>[0] = {}) {
-  const server = await startServer(options);
+  const server = await startServer({
+    securityReporter: (type) => void securityEvents.push(type),
+    ...options,
+  });
   servers.push(server);
   return server;
 }
@@ -30,6 +34,7 @@ async function newClient(server: TestServer, name: string, headers: Record<strin
 }
 
 afterEach(async () => {
+  securityEvents.splice(0);
   closeAll(clients.splice(0));
   for (const server of servers.splice(0)) {
     await server.close();
@@ -45,6 +50,11 @@ describe("exposition HTTP et WebSocket", () => {
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), { status: "ok", service: "drawing-game-server" });
     assert.equal(health.headers.get("x-powered-by"), null);
+    assert.equal(health.headers.get("strict-transport-security"), null, "pas de HSTS en HTTP");
+    const secure = await fetch(`${server.url}/api/health`, {
+      headers: { "x-forwarded-proto": "https" },
+    });
+    assert.match(secure.headers.get("strict-transport-security") ?? "", /max-age=[0-9]+/);
     assert.equal(health.headers.get("x-frame-options"), "DENY");
     assert.equal(health.headers.get("x-content-type-options"), "nosniff");
     assert.match(health.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
@@ -62,6 +72,7 @@ describe("exposition HTTP et WebSocket", () => {
       false,
       "origine étrangère",
     );
+    assert.ok(securityEvents.includes("origin_refused"), "l'origine refusée est journalisée");
   });
 });
 
@@ -95,6 +106,11 @@ describe("quotas d'abus", () => {
       "RATE_LIMITED",
       "RATE_LIMITED",
     ]);
+    assert.ok(securityEvents.includes("http_rate_limited"), "le flood HTTP est journalisé");
+    assert.ok(
+      securityEvents.includes("event_rate_limited"),
+      "le flood d'événements est journalisé",
+    );
   });
 
   // Risque : énumération de codes de salon, création massive de salons, saturation des connexions.
@@ -139,5 +155,14 @@ describe("quotas d'abus", () => {
     await newClient(full, "Un");
     await newClient(full, "Deux");
     assert.equal(await tryConnect(full), false, "la troisième connexion est refusée");
+
+    for (const event of [
+      "access_failed",
+      "access_blocked",
+      "room_creation_limited",
+      "connection_limit",
+    ]) {
+      assert.ok(securityEvents.includes(event), `${event} est journalisé`);
+    }
   });
 });
