@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { ConnectionRecoveryOverlay } from "./components/ConnectionRecoveryOverlay";
 import { ConnectionPanel } from "./components/ConnectionPanel";
@@ -60,6 +60,15 @@ export function AppLayout({ isGameActive, isLobby = false, children }: AppLayout
 export function App() {
   const roomSession = useRoomSession();
   const room = roomSession.session.room;
+  const screenKey = `${room?.game?.phase ?? "lobby"}:${room?.game?.turnId ?? ""}`;
+
+  // Sur téléphone, chaque nouvel écran de partie doit s'ouvrir en haut de page : sinon le joueur
+  // arrive sur les outils de dessin ou le bouton de suite, avec le canevas hors de l'écran.
+  useEffect(() => {
+    void screenKey;
+    window.scrollTo({ top: 0 });
+  }, [screenKey]);
+
   const currentPlayerId = roomSession.session.currentPlayerId;
   const game = room?.game ?? null;
   const isGameActive = game !== null && game.phase !== "LOBBY";
