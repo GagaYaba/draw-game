@@ -161,8 +161,7 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
-  # Tests unitaires des quotas et des bornes de salon. Hors synthèse Quality
-  # tant qu'il n'est pas ajouté aux protections de branche.
+  # Tests unitaires. Contrôle requis par les protections de branche, hors synthèse Quality.
   unit:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -185,8 +184,7 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-  # Parcours navigateur complet. Ce contrôle n'entre pas dans la synthèse Quality
-  # tant qu'il n'est pas ajouté aux protections de branche.
+  # Parcours navigateur complet. Contrôle requis par les protections de branche, hors synthèse Quality.
   e2e:
     name: E2E
     runs-on: ubuntu-latest

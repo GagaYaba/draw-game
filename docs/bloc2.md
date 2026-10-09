@@ -35,13 +35,23 @@ Statuts utilisés : **Disponible** quand une preuve existe et a été vérifiée
 | 25 | C2.4.1 | Les manuels sont rédigés avec clarté. | README d’installation et d’architecture ; aucun manuel complet. | À produire | Rédiger et faire relire les manuels de déploiement, d’utilisation et de mise à jour. |
 | 26 | C2.4.1 | La documentation permet de décrire les choix opérés en termes de technologies, de langages etc. | README et présente matrice. | Partiel | Documenter les décisions structurantes et leurs alternatives au fil des lots. |
 
-## Lots suivants
+## Plan d'exécution
 
-Le lot d'améliorations applicatives ciblées est documenté dans `docs/validation.md`. Il ne remplace pas les lots suivants :
+Les étapes s'exécutent dans l'ordre. Chacune passe par une ou deux PR vers `develop` et met à jour la preuve correspondante. Les critères sont désignés par leur numéro dans la matrice.
 
-1. **E2E regroupés** : automatiser peu de parcours complets à forte valeur, avec étapes partagées, restauration et départ représentatifs.
-2. **Unitaires utiles** : couvrir les règles serveur, validations et transformations à risque ; mesurer la couverture sur un périmètre incluant les fichiers non exécutés, jusqu’à couvrir la majorité du code développé sans gonfler artificiellement la suite.
-3. **Audits et recette** : choisir et vérifier le référentiel d’accessibilité, traiter séparément les dix catégories de l’édition OWASP retenue, exécuter le cahier de recettes complet et gérer les anomalies observées jusqu’au contre-test.
-4. **Déploiement et manuels** : séparer validation, déploiement de test, vérification utilisateur, promotion stable et rollback ; produire les preuves d’exécution et les manuels de déploiement, d’utilisation et de mise à jour.
+| # | Étape | Critères | Livrable principal | Statut |
+| ---: | --- | --- | --- | --- |
+| 0 | Socle : plan consigné, `Unit tests` et `E2E` obligatoires | 7 | Protections de branche, `AGENTS.md` | En cours |
+| 1 | Besoins, user stories, squelette du cahier de recettes | 9, 10, 20, 21 | `docs/recette.md` | À faire |
+| 2 | Tests unitaires et couverture | 13, 24 | Tests des règles, validations, sessions ; couverture mesurée en CI | À faire |
+| 3 | E2E complémentaires | 9, 11, 20, 24 | Refus, erreurs, expiration, bornes 2 et 6 joueurs, mobile et tablette | À faire |
+| 4 | Audit OWASP Top 10:2025 | 12, 14 | Analyse par catégorie dans `docs/securite.md`, corrections | À faire |
+| 5 | Accessibilité RGAA 4.1 AA | 11, 15, 16 | `docs/accessibilite.md`, audit, corrections | À faire |
+| 6 | Performance | 1, 5 | `docs/performance.md`, mesures, seuils, contrôle en CI | À faire |
+| 7 | Déploiement progressif | 1, 4, 17, 18, 19 | Préproduction `develop`, production `main`, rollback exécuté | À faire |
+| 8 | Validation par des utilisateurs | 19, 22 | Fiche de retour, testeurs sur plusieurs appareils | À faire |
+| 9 | Exécution complète du cahier de recettes | 21, 22, 23, 24 | Résultats, plan de correction des bogues, contre-tests | À faire |
+| 10 | Manuels et décisions | 2, 8, 25, 26 | `docs/deploiement.md`, `docs/utilisation.md`, `docs/mise-a-jour.md`, `docs/decisions.md` | À faire |
+| 11 | Bilan | tous | Matrice ajustée aux seules preuves exécutées | À faire |
 
-Ce cadrage n’affirme pas que le BLOC 2 est complet. Les statuts ne progressent qu’avec des preuves réellement exécutées.
+Ce cadrage n'affirme pas que le BLOC 2 est complet. Les statuts ne progressent qu'avec des preuves réellement exécutées.
