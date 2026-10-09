@@ -20,7 +20,13 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/api/health`,
     reuseExistingServer: false,
     // Délai de reconnexion réduit pour tester l'expiration sans attendre 60 secondes.
-    env: { PORT: String(PORT), NODE_ENV: "production", PLAYER_RECONNECT_GRACE_MS: "6000" },
+    env: {
+      PORT: String(PORT),
+      NODE_ENV: "production",
+      PLAYER_RECONNECT_GRACE_MS: "6000",
+      // Tous les tests partent de la même adresse : le quota de production (5 salons par jour) ne convient pas.
+      MAX_ROOMS_PER_IP_PER_DAY: "1000",
+    },
     timeout: 180_000,
   },
 });

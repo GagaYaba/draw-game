@@ -21,6 +21,11 @@ const parsedReconnectGraceMs =
 const reconnectGraceMs = isValidReconnectGraceMs(parsedReconnectGraceMs)
   ? parsedReconnectGraceMs
   : DEFAULT_RECONNECT_GRACE_MS;
+const roomsPerIpValue = process.env.MAX_ROOMS_PER_IP_PER_DAY;
+const roomsPerIpPerDay =
+  roomsPerIpValue !== undefined && /^[1-9]\d*$/u.test(roomsPerIpValue)
+    ? Number(roomsPerIpValue)
+    : undefined;
 const allowedSocketOrigins = (process.env.SOCKET_ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
@@ -28,6 +33,7 @@ const allowedSocketOrigins = (process.env.SOCKET_ALLOWED_ORIGINS ?? "")
 
 const { dispose, httpServer, io } = createDrawingGameServer({
   reconnectGraceMs,
+  socketGuardOptions: { roomsPerIpPerDay },
   allowedSocketOrigins,
   allowLoopbackSocketOrigins: process.env.NODE_ENV !== "production",
 });

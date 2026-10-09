@@ -160,13 +160,13 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | --- | --- | --- | --- | --- | --- | --- |
 | RC36 | US25 | Parcours sur écran de téléphone et de tablette (émulation). | Interface utilisable, sans défilement horizontal, boutons accessibles. | Fonctionnel | E2E `extra-paths.spec.ts` (profil Pixel 7 : parcours complet, aucun débordement horizontal) ; tablette non testée | Partiel : téléphone réussi (local) |
 | RC37 | US25 | Dessin et estimation au doigt sur un téléphone et une tablette réels. | Tracé continu, sans défilement parasite ; estimation validée. | Fonctionnel | Manuel (8) | Non exécuté |
-| RC38 | US26 | Navigation au clavier sur tous les écrans. | Ordre logique, focus visible, aucune impasse ; limites du canevas documentées. | Accessibilité | Manuel (5) | Non exécuté |
-| RC39 | US26 | Parcours avec un lecteur d'écran. | Noms et rôles annoncés ; changements de phase annoncés. | Accessibilité | Manuel (5) | Non exécuté |
-| RC40 | US26 | Contrôle automatique et contrastes, zoom à 200 %. | Pas de violation automatique du référentiel retenu ; contrastes suffisants. | Accessibilité | À automatiser (5) | Non exécuté |
+| RC38 | US26 | Navigation au clavier sur tous les écrans. | Ordre logique, focus visible, aucune impasse ; limites du canevas documentées. | Accessibilité | E2E `accessibility.spec.ts` (accueil, salon, état prêt) ; autres écrans et canevas non automatisés | Partiel : parcours clavier et focus visible réussis (local) |
+| RC39 | US26 | Parcours avec un lecteur d'écran. | Noms et rôles annoncés ; changements de phase annoncés. | Accessibilité | Manuel (lecteur d'écran), non exécuté | Non exécuté |
+| RC40 | US26 | Contrôle automatique et contrastes, zoom à 200 %. | Pas de violation automatique du référentiel retenu ; contrastes suffisants. | Accessibilité | E2E `accessibility.spec.ts` (axe-core WCAG 2.1 AA, contraste mesuré, 320 px) ; zoom 200 % non vérifié | Partiel : contrôle automatique, contrastes et 320 px réussis (local) |
 
 ## 5. Tests automatisés et risques couverts
 
-La suite compte **31 tests unitaires et d'intégration** et **4 tests E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
+La suite compte **31 tests unitaires et d'intégration** et **6 tests E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
 
 | Fichier | Test | Risque couvert |
 | --- | --- | --- |
@@ -204,6 +204,8 @@ La suite compte **31 tests unitaires et d'intégration** et **4 tests E2E**. Cha
 | `e2e/extra-paths.spec.ts` | Lien d'invitation et erreurs de saisie | Un joueur qui se trompe de pseudonyme ou de code reste bloqué sans comprendre. |
 | | Partie à deux joueurs sur téléphone | Jeu injouable sur petit écran ou au minimum de joueurs (débordement, écran hors de vue). |
 | | Actualisation, coupure, reprise et expiration | Perte du dessin en cours, groupe bloqué après une coupure. |
+| `e2e/accessibility.spec.ts` | Règles WCAG 2.1 AA, contrastes mesurés et réflexion à 320 px sur chaque écran | Écran inutilisable avec une aide technique ou un zoom fort ; texte illisible. |
+| | Création de salon et état prêt au clavier, focus visible | Joueur qui n'utilise pas la souris bloqué. |
 
 Ces tests ne couvrent pas les gestionnaires d'événements ni les effets des composants (canevas, minuteries) : ils relèvent du test E2E.
 

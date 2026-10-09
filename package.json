@@ -29,6 +29,7 @@
   },
   "packageManager": "npm@10.9.0",
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@biomejs/biome": "2.5.15",
     "@playwright/test": "1.56.1",
     "c8": "11.0.0",

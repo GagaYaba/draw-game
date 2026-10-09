@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import {
   type Browser,
   type BrowserContext,
@@ -5,6 +6,8 @@ import {
   expect,
   type Page,
 } from "@playwright/test";
+
+import { settleAnimations } from "./contrast";
 
 export interface Player {
   name: string;
@@ -95,4 +98,25 @@ export async function voteValue(player: Player, value: number): Promise<void> {
     .getByRole("dialog")
     .getByRole("button", { name: "Valider mon estimation" })
     .click();
+}
+
+/**
+ * Règles WCAG 2.1 A et AA automatisables (base technique du RGAA 4.1) et bonnes pratiques d'axe-core : renvoie une ligne par
+ * violation, préfixée par le joueur et l'écran, pour pouvoir toutes les lister d'un coup.
+ */
+export async function collectAccessibilityFindings(
+  player: Player,
+  screen: string,
+): Promise<string[]> {
+  // Les transitions en cours (bouton qui vient d'être activé) donnent des couleurs intermédiaires :
+  // on mesure l'état final, comme le ferait un utilisateur après la transition.
+  await settleAnimations(player.page);
+  const results = await new AxeBuilder({ page: player.page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+    .analyze();
+
+  return results.violations.map(
+    (violation) =>
+      `${player.name} / ${screen} : ${violation.id} (${violation.impact}), ${violation.nodes.length} élément(s), ex. ${violation.nodes[0]?.target.join(" ")}`,
+  );
 }
