@@ -92,77 +92,77 @@ Règle d'exécution : chaque exécution consigne la version de l'application (co
 
 ## 4. Cahier de recettes
 
-Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existant ; *À automatiser* indique un test prévu (étape du plan entre parenthèses) ; *Manuel* indique un essai à exécuter à la main. Colonne « Résultat » : « Réussi en CI » signifie que le test permanent a réussi sur la CI de la PR #14 (9 octobre 2026) ; « Réussi (local) » signifie que le test a réussi sous Node 22.12.0 sur le poste de développement, sa CI restant à confirmer ; « Non exécuté » signifie qu'aucun résultat n'est consigné.
+Colonne « Moyen » : *E2E*, *Unitaire* et *Intégration* renvoient à un test permanent ; *Manuel* indique un essai exécuté à la main. Colonne « Résultat » : « Réussi en CI » signifie que le test permanent a réussi dans la CI de `develop` (exécution [37934957108](https://github.com/GagaYaba/draw-game/actions/runs/37934957108), commit `3dec409`, Node 22.12.0, 9 octobre 2026) ; « Réussi (manuel) » signifie un essai à la main consigné en section 5 ter ; « Non exécuté » signifie qu'aucun résultat n'est consigné.
 
 ### Salon
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
 | RC01 | US01, US02, US04, US05, US06 | Un joueur crée un salon, deux autres le rejoignent par le code, tous se déclarent prêts, l'hôte lance. | Le code à 5 caractères s'affiche ; chaque joueur voit les deux autres ; la partie démarre. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
-| RC02 | US02 | Un joueur ouvre le lien d'invitation `?room=CODE`. | Le code est pré-rempli à l'accueil. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi (local) ; CI à confirmer |
-| RC03 | US03 | Pseudonyme vide, trop court, trop long, avec caractère interdit, puis doublon en changeant la casse. | Refus avec un message explicite ; le doublon est refusé dans le salon. | Fonctionnel | Intégration `server.test.ts`, unitaire `validation.test.ts` | Réussi (local) ; CI à confirmer |
-| RC04 | US02, US27 | Code de salon inconnu ou mal formé. | Message d'erreur ; aucune entrée dans un salon. | Fonctionnel | E2E `extra-paths.spec.ts` (interface), intégration `server.test.ts` (serveur) | Réussi (local) ; CI à confirmer |
-| RC05 | US01, US06 | Partie à deux joueurs, puis tentative de lancement à un seul joueur. | Le lancement est refusé à un joueur ; il est possible à deux joueurs prêts. | Fonctionnel | Unitaire `rooms.test.ts` (lancement) ; E2E à automatiser (3) | Partiel : unitaire réussi en CI |
+| RC02 | US02 | Un joueur ouvre le lien d'invitation `?room=CODE`. | Le code est pré-rempli à l'accueil. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi en CI |
+| RC03 | US03 | Pseudonyme vide, trop court, trop long, avec caractère interdit, puis doublon en changeant la casse. | Refus avec un message explicite ; le doublon est refusé dans le salon. | Fonctionnel | Intégration `server.test.ts`, unitaire `validation.test.ts` | Réussi en CI |
+| RC04 | US02, US27 | Code de salon inconnu ou mal formé. | Message d'erreur ; aucune entrée dans un salon. | Fonctionnel | E2E `extra-paths.spec.ts` (interface), intégration `server.test.ts` (serveur) | Réussi en CI |
+| RC05 | US01, US06 | Partie à deux joueurs, puis tentative de lancement à un seul joueur. | Le lancement est refusé à un joueur ; il est possible à deux joueurs prêts. | Fonctionnel | Unitaire `rooms.test.ts` (lancement) ; E2E `extra-paths.spec.ts` (partie à deux joueurs) | Réussi en CI |
 | RC06 | US01 | Salon plein : un septième joueur tente de rejoindre. | Refus « salon plein ». | Fonctionnel | Unitaire `rooms.test.ts` | Réussi en CI |
-| RC07 | US06, US23 | Un non-hôte tente de lancer ; lancement avant que tous soient prêts ; second lancement. | Refus avec un message ; l'état de la partie ne change pas. | Sécurité | Intégration `server.test.ts` (non-hôte) ; reste à automatiser (3) | Partiel : refus du non-hôte réussi (local) |
+| RC07 | US06, US23 | Un non-hôte tente de lancer ; lancement avant que tous soient prêts ; second lancement. | Refus avec un message ; l'état de la partie ne change pas. | Sécurité | Intégration `server.test.ts` (non-hôte) ; unitaire `rooms.test.ts` (lancement avant que tous soient prêts) | Réussi en CI |
 | RC08 | US07 | Un joueur quitte le salon depuis l'écran du lobby. | Il revient à l'accueil ; le salon n'affiche plus son nom. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
 
 ### Partie
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
-| RC09 | US08, US09, US10, US11, US13, US14, US15, US16 | Parcours complet à trois joueurs : deux manches, chacune avec trois dessins validés en même temps puis estimés un par un. | Chaque dessin est présenté une fois ; points et révélation après chaque dessin ; classement final après la seconde manche. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local, Node 22.12.0) ; CI à confirmer |
-| RC10 | US08, US09 | Chaque joueur reçoit sa propre consigne et son niveau secret ; l'état public ne contient aucun niveau avant la révélation. | Trois consignes distinctes par manche ; aucune fuite dans l'état public. | Sécurité | Unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
-| RC11 | US09 | Utiliser stylo, gomme, pot de peinture, couleurs, épaisseurs, annuler, tout effacer. | Chaque outil modifie le dessin comme attendu. | Fonctionnel | Manuel, puis E2E ciblé (3) | Non exécuté |
-| RC12 | US10 | Valider un dessin vide ; valider un dessin avec confirmation ; annuler la confirmation. | Le bouton de validation est inactif sans trait ; l'annulation conserve le dessin. | Fonctionnel | E2E `extra-paths.spec.ts` (validation désactivée sans trait) ; annulation de la confirmation non automatisée | Partiel : validation désactivée sans trait réussie (local) |
-| RC13 | US10, US23 | Second envoi d'un dessin ; envoi hors phase ; dessin dépassant 250 traits. | Refus pour chaque cas. | Sécurité | Intégration `server.test.ts` (second envoi), unitaire `validation.test.ts` (limites) ; hors phase à automatiser | Partiel : second envoi et limites réussis (local) |
-| RC14 | US11, US12, US23 | L'auteur tente d'estimer son dessin ; doublon d'estimation ; valeur hors 1 à 10 ; estimation d'un dessin périmé ; estimation après révélation. | Refus pour chaque cas, sans changer l'état du jeu. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC15 | US13 | Barème : estimation exacte, écart de 1, écart de 2 ou plus ; points de l'auteur selon les points de ses votants. | Votant : 2, 1 ou 0 point ; auteur : moyenne arrondie des points de ses votants. | Structurel | Unitaire `game.test.ts` (barème paramétré) | Réussi (local) ; CI à confirmer |
-| RC16 | US16 | Égalité au classement final. | Tous les ex æquo sont annoncés vainqueurs. | Fonctionnel | À automatiser (2) | Non exécuté |
-| RC17 | US17 | L'hôte propose une revanche ; un non-hôte essaie. | Retour au lobby de tous, scores et états prêts remis à zéro ; refus pour le non-hôte. | Fonctionnel | E2E `main-game.spec.ts` (hôte), intégration `server.test.ts` (non-hôte) | Réussi (local) ; CI à confirmer |
-| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par dessin ; la partie se termine normalement. | Fonctionnel | E2E `extra-paths.spec.ts` (téléphone) | Réussi (local) ; CI à confirmer |
-| RC19 | US25 | Partie à six joueurs. | Six joueurs dessinent en même temps sur deux manches. | Fonctionnel | À automatiser (3) | Non exécuté |
-| RC41 | US10 | Un joueur valide son dessin avant les autres. | Il voit « En attente des autres joueurs » et la liste de ceux qui dessinent encore ; les votes ne démarrent qu'après la dernière validation. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
-| RC42 | US14, US15 | Enchaînement des dessins : dessin suivant, manche suivante, classement final. | Les libellés et la suite correspondent à l'étape ; un non-hôte ne peut pas continuer. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
+| RC09 | US08, US09, US10, US11, US13, US14, US15, US16 | Parcours complet à trois joueurs : deux manches, chacune avec trois dessins validés en même temps puis estimés un par un. | Chaque dessin est présenté une fois ; points et révélation après chaque dessin ; classement final après la seconde manche. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi en CI |
+| RC10 | US08, US09 | Chaque joueur reçoit sa propre consigne et son niveau secret ; l'état public ne contient aucun niveau avant la révélation. | Trois consignes distinctes par manche ; aucune fuite dans l'état public. | Sécurité | Unitaire `game.test.ts` | Réussi en CI |
+| RC11 | US09 | Utiliser stylo, gomme, pot de peinture, couleurs, épaisseurs, annuler, tout effacer. | Chaque outil modifie le dessin comme attendu. | Fonctionnel | Manuel (section 5 ter) | Réussi (manuel) |
+| RC12 | US10 | Valider un dessin vide ; valider un dessin avec confirmation ; annuler la confirmation. | Le bouton de validation est inactif sans trait ; l'annulation conserve le dessin. | Fonctionnel | E2E `extra-paths.spec.ts` (validation désactivée sans trait) ; annulation de la confirmation : manuel (section 5 ter) | Réussi en CI (validation) ; réussi (manuel) pour l'annulation |
+| RC13 | US10, US23 | Second envoi d'un dessin ; envoi hors phase ; dessin dépassant 250 traits. | Refus pour chaque cas. | Sécurité | Intégration `server.test.ts` (second envoi), unitaire `validation.test.ts` (limites) ; hors partie : `server.test.ts` | Réussi en CI (envoi hors partie en salon : refusé sans effet) |
+| RC14 | US11, US12, US23 | L'auteur tente d'estimer son dessin ; doublon d'estimation ; valeur hors 1 à 10 ; estimation d'un dessin périmé ; estimation après révélation. | Refus pour chaque cas, sans changer l'état du jeu. | Sécurité | Intégration `server.test.ts` | Réussi en CI |
+| RC15 | US13 | Barème : estimation exacte, écart de 1, écart de 2 ou plus ; points de l'auteur selon les points de ses votants. | Votant : 2, 1 ou 0 point ; auteur : moyenne arrondie des points de ses votants. | Structurel | Unitaire `game.test.ts` (barème paramétré) | Réussi en CI |
+| RC16 | US16 | Égalité au classement final. | Tous les ex æquo sont annoncés vainqueurs. | Fonctionnel | Unitaire `game.test.ts` (rang des ex æquo) | Réussi en CI (à confirmer sur la PR de l'étape 9) |
+| RC17 | US17 | L'hôte propose une revanche ; un non-hôte essaie. | Retour au lobby de tous, scores et états prêts remis à zéro ; refus pour le non-hôte. | Fonctionnel | E2E `main-game.spec.ts` (hôte), intégration `server.test.ts` (non-hôte) | Réussi en CI |
+| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par dessin ; la partie se termine normalement. | Fonctionnel | E2E `extra-paths.spec.ts` (téléphone) | Réussi en CI |
+| RC19 | US25 | Partie à six joueurs. | Six joueurs dessinent en même temps sur deux manches. | Fonctionnel | Unitaire `game.test.ts` (partie de 6 joueurs sur deux manches) | Réussi en CI (à confirmer sur la PR de l'étape 9) |
+| RC41 | US10 | Un joueur valide son dessin avant les autres. | Il voit « En attente des autres joueurs » et la liste de ceux qui dessinent encore ; les votes ne démarrent qu'après la dernière validation. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi en CI |
+| RC42 | US14, US15 | Enchaînement des dessins : dessin suivant, manche suivante, classement final. | Les libellés et la suite correspondent à l'étape ; un non-hôte ne peut pas continuer. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi en CI |
 
 ### Continuité et réseau
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
 | RC20 | US18 | Un votant actualise sa page pendant son estimation. | Il retrouve son salon et son formulaire d'estimation, et peut voter. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
-| RC21 | US18 | Le dessinateur actualise sa page en cours de dessin. | Le dessin en cours et le niveau secret sont restaurés. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi (local) ; CI à confirmer |
-| RC22 | US18, US23 | Restauration avec un jeton invalide, un joueur inconnu, une instance cliente différente. | Refus ; aucune restauration. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC23 | US19 | Un joueur est coupé, puis revient avant 60 secondes. | Indicateur de déconnexion, puis reprise de sa place. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC24 | US20 | Un joueur reste déconnecté plus de 60 secondes pendant une partie. | Il est retiré ; la partie est annulée avec un message pour le groupe. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC25 | US21 | Un joueur quitte en cours de partie ; l'hôte quitte. | La partie est annulée ; l'hôte passe au plus ancien joueur. | Fonctionnel | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC26 | US22 | La même session est ouverte dans un second onglet. | Refus avec un message ; le premier onglet reste actif. | Sécurité | Intégration `server.test.ts` (serveur) ; message d'interface à automatiser (3) | Partiel : refus côté serveur réussi (local) |
-| RC27 | US27 | Le serveur est indisponible au chargement ou en cours de partie. | Message clair ; reprise automatique lorsque le serveur revient. | Fonctionnel | Manuel | Non exécuté |
+| RC21 | US18 | Le dessinateur actualise sa page en cours de dessin. | Le dessin en cours et le niveau secret sont restaurés. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi en CI |
+| RC22 | US18, US23 | Restauration avec un jeton invalide, un joueur inconnu, une instance cliente différente. | Refus ; aucune restauration. | Sécurité | Intégration `server.test.ts` | Réussi en CI |
+| RC23 | US19 | Un joueur est coupé, puis revient avant 60 secondes. | Indicateur de déconnexion, puis reprise de sa place. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi en CI |
+| RC24 | US20 | Un joueur reste déconnecté plus de 60 secondes pendant une partie. | Il est retiré ; la partie est annulée avec un message pour le groupe. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi en CI |
+| RC25 | US21 | Un joueur quitte en cours de partie ; l'hôte quitte. | La partie est annulée ; l'hôte passe au plus ancien joueur. | Fonctionnel | Intégration `server.test.ts` | Réussi en CI |
+| RC26 | US22 | La même session est ouverte dans un second onglet. | Refus avec un message ; le premier onglet reste actif. | Sécurité | Intégration `server.test.ts` (serveur) ; message d'interface « Cette session est déjà ouverte dans un autre onglet » : manuel (section 5 ter) | Réussi en CI (serveur) ; réussi (manuel) pour l'interface |
+| RC27 | US27 | Le serveur est indisponible au chargement ou en cours de partie. | Message clair ; reprise automatique lorsque le serveur revient. | Fonctionnel | Manuel (section 5 ter) | Partiel : message de coupure conforme ; après redémarrage du serveur la partie est perdue (limite connue) |
 
 ### Sécurité et exploitation
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
-| RC28 | US24 | Plus de 60 requêtes par minute sur `/api` depuis la même IP. | Réponse 429 avec en-tête `Retry-After`. | Sécurité | Intégration `quotas.test.ts` | Réussi (local) ; CI à confirmer |
-| RC29 | US24 | Plus de 5 événements par seconde sur une connexion. | Accusé `RATE_LIMITED` ; l'état du jeu ne change pas. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi (local) ; CI à confirmer |
-| RC30 | US24 | Plus de 30 connexions simultanées ou 5 salons par jour depuis la même IP. | La connexion ou la création excédentaire est refusée. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi (local) ; CI à confirmer |
-| RC31 | US24 | Cinq échecs de jonction ou de restauration. | Les tentatives suivantes sont refusées pendant 15 minutes. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi (local) ; CI à confirmer |
+| RC28 | US24 | Plus de 60 requêtes par minute sur `/api` depuis la même IP. | Réponse 429 avec en-tête `Retry-After`. | Sécurité | Intégration `quotas.test.ts` | Réussi en CI |
+| RC29 | US24 | Plus de 5 événements par seconde sur une connexion. | Accusé `RATE_LIMITED` ; l'état du jeu ne change pas. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi en CI |
+| RC30 | US24 | Plus de 30 connexions simultanées ou 5 salons par jour depuis la même IP. | La connexion ou la création excédentaire est refusée. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi en CI |
+| RC31 | US24 | Cinq échecs de jonction ou de restauration. | Les tentatives suivantes sont refusées pendant 15 minutes. | Sécurité | Intégration `quotas.test.ts`, unitaire `security.test.ts` | Réussi en CI |
 | RC32 | US24 | Un salon sans action pendant 24 heures. | Le salon est fermé. | Sécurité | Unitaire `rooms.test.ts` | Réussi en CI |
-| RC33 | US23 | Poignée de main WebSocket depuis une origine étrangère ; en-têtes de sécurité sur `/api/health`. | Origine refusée ; en-têtes CSP, `X-Frame-Options`, `nosniff` présents ; pas de `X-Powered-By`. | Sécurité | Intégration `quotas.test.ts`, unitaire `validation.test.ts` | Réussi (local) ; CI à confirmer |
+| RC33 | US23 | Poignée de main WebSocket depuis une origine étrangère ; en-têtes de sécurité sur `/api/health`. | Origine refusée ; en-têtes CSP, `X-Frame-Options`, `nosniff` présents ; pas de `X-Powered-By`. | Sécurité | Intégration `quotas.test.ts`, unitaire `validation.test.ts` | Réussi en CI |
 | RC34 | B6 | Audit des dépendances, formatage, lint, typage, build. | 0 vulnérabilité haute ; tous les contrôles verts. | Structurel | CI : `Dependency audit`, `Formatting`, `Lint`, `Typecheck`, `Build` | Réussi en CI |
-| RC35 | B7 | Déploiement : santé après déploiement, déclenchement automatique, retour arrière. | `/api/health` répond 200 ; déploiement sans clic manuel ; retour arrière exécuté. | Déploiement | Manuel (7) | Non exécuté |
+| RC35 | B7 | Déploiement : santé après déploiement, déclenchement automatique, retour arrière. | `/api/health` répond 200 ; déploiement sans clic manuel ; retour arrière exécuté. | Déploiement | `scripts/smoke-check.mjs` (`docs/deploiement-progressif.md`) | Partiel : santé, commit servi et Socket.IO contrôlés en préproduction ; déclencheur automatique et retour arrière non prouvés |
 
-| RC43 | US23 | Charges inattendues (null, nombres, texte de 10 000 caractères, tableaux, objets imbriqués) sur chacun des dix événements. | Chaque événement est refusé sans plantage ; le serveur répond ensuite à la santé et accepte une création de salon. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC44 | US24 | Origine refusée, flood HTTP et d'événements, échecs et blocage d'accès, salons et connexions limités. | Chaque événement est journalisé une fois, avec une adresse IP masquée ; HSTS annoncé pour les requêtes HTTPS. | Sécurité | Intégration `quotas.test.ts` | Réussi (local) ; CI à confirmer |
+| RC43 | US23 | Charges inattendues (null, nombres, texte de 10 000 caractères, tableaux, objets imbriqués) sur chacun des dix événements. | Chaque événement est refusé sans plantage ; le serveur répond ensuite à la santé et accepte une création de salon. | Sécurité | Intégration `server.test.ts` | Réussi en CI |
+| RC44 | US24 | Origine refusée, flood HTTP et d'événements, échecs et blocage d'accès, salons et connexions limités. | Chaque événement est journalisé une fois, avec une adresse IP masquée ; HSTS annoncé pour les requêtes HTTPS. | Sécurité | Intégration `quotas.test.ts` | Réussi en CI |
 
 ### Appareils et accessibilité
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
-| RC36 | US25 | Parcours sur écran de téléphone et de tablette (émulation). | Interface utilisable, sans défilement horizontal, boutons accessibles. | Fonctionnel | E2E `extra-paths.spec.ts` (profil Pixel 7 : parcours complet, aucun débordement horizontal) ; tablette non testée | Partiel : téléphone réussi (local) |
-| RC37 | US25 | Dessin et estimation au doigt sur un téléphone et une tablette réels. | Tracé continu, sans défilement parasite ; estimation validée. | Fonctionnel | Manuel (8) | Non exécuté |
-| RC38 | US26 | Navigation au clavier sur tous les écrans. | Ordre logique, focus visible, aucune impasse ; limites du canevas documentées. | Accessibilité | E2E `accessibility.spec.ts` (accueil, salon, état prêt) ; autres écrans et canevas non automatisés | Partiel : parcours clavier et focus visible réussis (local) |
+| RC36 | US25 | Parcours sur écran de téléphone et de tablette (émulation). | Interface utilisable, sans défilement horizontal, boutons accessibles. | Fonctionnel | E2E `extra-paths.spec.ts` (profil Pixel 7 : parcours complet, aucun débordement horizontal) ; tablette non testée | Partiel : téléphone réussi en CI |
+| RC37 | US25 | Dessin et estimation au doigt sur un téléphone et une tablette réels. | Tracé continu, sans défilement parasite ; estimation validée. | Fonctionnel | Manuel (appareils réels, `docs/validation-utilisateurs.md`) | Non exécuté |
+| RC38 | US26 | Navigation au clavier sur tous les écrans. | Ordre logique, focus visible, aucune impasse ; limites du canevas documentées. | Accessibilité | E2E `accessibility.spec.ts` (accueil, salon, état prêt) ; autres écrans et canevas non automatisés | Partiel : parcours clavier et focus visible réussis en CI |
 | RC39 | US26 | Parcours avec un lecteur d'écran. | Noms et rôles annoncés ; changements de phase annoncés. | Accessibilité | Manuel (lecteur d'écran), non exécuté | Non exécuté |
-| RC40 | US26 | Contrôle automatique et contrastes, zoom à 200 %. | Pas de violation automatique du référentiel retenu ; contrastes suffisants. | Accessibilité | E2E `accessibility.spec.ts` (axe-core WCAG 2.1 AA, contraste mesuré, 320 px) ; zoom 200 % non vérifié | Partiel : contrôle automatique, contrastes et 320 px réussis (local) |
+| RC40 | US26 | Contrôle automatique et contrastes, zoom à 200 %. | Pas de violation automatique du référentiel retenu ; contrastes suffisants. | Accessibilité | E2E `accessibility.spec.ts` (axe-core WCAG 2.1 AA, contraste mesuré, 320 px) ; zoom 200 % non vérifié | Partiel : contrôle automatique, contrastes et 320 px réussis en CI |
 
 ## 5. Tests automatisés et risques couverts
 
@@ -231,8 +231,42 @@ Mesure locale sous Node 22.12.0 ; la CI exécute la même commande et échoue so
 - Le composant `DrawingCanvas` (gestion du pointeur) n'est couvert qu'en rendu.
 - La couverture par lignes ne mesure pas la qualité des assertions : les scénarios « Réussi (local) » de la section 4 indiquent ce que les tests vérifient.
 
+## 5 ter. Exécution du cahier du 9 octobre 2026
+
+Version : commit `3dec409` de `develop`, serveur de production local (`npm run build`, `npm start`) pour les essais manuels. Les essais manuels ont été faits avec un script Playwright jetable, non conservé dans le dépôt : ils servent de preuve d'exécution, pas de test permanent. Poste local sous Node 24.14.0 ; la CI utilise Node 22.12.0 et fait foi pour les tests permanents.
+
+| Scénario | Essai | Résultat observé |
+| --- | --- | --- |
+| RC11 | Stylo, annuler, gomme, pot de peinture, 16 couleurs, « Tout effacer » (garder puis confirmer), mesurés par l'empreinte du canevas | Chaque outil modifie le canevas comme attendu ; annuler restitue le canevas vide ; « Garder mon dessin » conserve ; la confirmation vide le canevas. |
+| RC12 | Validation sans trait, puis « Continuer à dessiner » depuis la confirmation | Bouton inactif sans trait ; l'annulation conserve le dessin et reste en phase de dessin. |
+| RC26 | Même session ouverte dans un second onglet | Second onglet : « Cette session est déjà ouverte dans un autre onglet. » ; le premier reste actif. |
+| RC27 | Serveur arrêté pendant un salon, puis redémarré | Pendant la coupure : « Connexion interrompue. Tentative de reconnexion… Votre place est conservée… ». Au retour du serveur : retour à l'accueil avec « Cette partie n'existe plus. » (voir ci-dessous). Page inaccessible si le serveur est arrêté au chargement (page d'erreur du navigateur). |
+
+**Écart qualifié (RC27), décision et non défaut.** L'état des salons est en mémoire : le redémarrage du serveur efface les parties, la reprise automatique ne s'applique donc qu'aux coupures réseau (RC23), pas au redémarrage du processus. Le message « Votre place est conservée » est exact tant que le serveur tourne et peut paraître trompeur après un redémarrage ; la correction (message distinct, ou stockage hors mémoire) n'est pas retenue à ce stade pour un jeu entre amis sur une instance unique. À rediscuter si la validation utilisateur le signale.
+
+### Bilan du cahier
+
+Les 44 scénarios après cette exécution :
+
+| Statut | Nombre | Scénarios |
+| --- | --- | --- |
+| Réussi (CI ou manuel) | 37 | Tous sauf ceux ci-dessous |
+| Partiel | 5 | RC27 (redémarrage du serveur), RC35 (déclencheur et retour arrière), RC36 (tablette), RC38 (clavier hors canevas), RC40 (zoom 200 %) |
+| Non exécuté | 2 | RC37 (appareils tactiles réels), RC39 (lecteur d'écran) |
+
+### Plan de correction et suites
+
+Aucun défaut applicatif nouveau n'a été trouvé par cette exécution. Les restes sont des écarts déclarés, avec leur décision :
+
+| Écart | Qualification | Suite |
+| --- | --- | --- |
+| Partie perdue au redémarrage du serveur (RC27) | Décision : état en mémoire, instance unique | Rediscuter si la validation utilisateur le signale. |
+| Retour arrière et déclencheur automatique Render (RC35) | Preuve manquante | Exécuter la procédure de `docs/deploiement-progressif.md`. |
+| Tablette, appareils tactiles réels, lecteur d'écran, zoom 200 % (RC36, RC37, RC39, RC40) | Essais manuels non faits | À faire avec les testeurs (`docs/validation-utilisateurs.md`) et la liste de `docs/accessibilite.md`. |
+| Dessin non utilisable au clavier (RC38) | Non-conformité déclarée | `docs/accessibilite.md`, section 6. |
+
 ## 6. Limites
 
 - Les user stories ne reposent pas sur un cahier des charges initial : elles décrivent le jeu existant et doivent être validées par le porteur du projet.
-- Le cahier couvre les fonctions actuelles. Les étapes 2 et 3 du plan (`docs/bloc2.md`) automatisent les scénarios « À automatiser » ; l'étape 9 exécute le cahier complet et consigne les résultats.
+- Le cahier couvre les fonctions actuelles. L'étape 9 a exécuté le cahier : voir la section 5 ter pour les essais manuels et le bilan.
 - « Réussi en CI » ne vaut pas validation par des utilisateurs (étape 8).
