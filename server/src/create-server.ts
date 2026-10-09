@@ -34,6 +34,8 @@ import { registerSocketHandlers } from "./socket/register-socket-handlers.js";
 import { isSocketOriginAllowed } from "./socket/socket-origin-policy.js";
 
 export interface CreateDrawingGameServerOptions {
+  /** Début du commit déployé, exposé par /api/health. */
+  commit?: string;
   serveClient?: boolean;
   roomManager?: RoomManager;
   gameManagerOptions?: GameManagerOptions;
@@ -195,6 +197,7 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
     const health: HealthResponse = {
       status: "ok",
       service: "drawing-game-server",
+      ...(options.commit ? { commit: options.commit } : {}),
     };
 
     response.json(health);

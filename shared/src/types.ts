@@ -345,4 +345,6 @@ export interface ServerToClientEvents {
 export interface HealthResponse {
   status: "ok";
   service: "drawing-game-server";
+  /** Début du commit déployé, lorsque la plateforme le fournit (preuve de la version servie). */
+  commit?: string;
 }

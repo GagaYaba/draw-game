@@ -1,7 +1,8 @@
-# Blueprint Render du service de production (branche develop).
-# Fichier exporté depuis le service existant le 9 octobre 2026 : un écart avec le
-# tableau de bord se corrige ici, par PR. Les valeurs des variables ne sont pas
-# versionnées (sync: false) ; elles restent saisies dans Render.
+# Blueprint Render : préproduction (branche develop) et production (branche main).
+# Le service `game` existe déjà (exporté le 9 octobre 2026) et devient la préproduction ; son nom
+# et son URL ne changent pas. `game-prod` est la production, liée à `main`. Un écart avec le
+# tableau de bord se corrige ici, par PR. Les valeurs des variables ne sont pas versionnées
+# (sync: false) ; elles restent saisies dans Render.
 version: "1"
 services:
   - type: web
@@ -9,6 +10,22 @@ services:
     runtime: node
     repo: https://github.com/GagaYaba/draw-game
     branch: develop
+    plan: free
+    envVars:
+      - key: PLAYER_RECONNECT_GRACE_MS
+        sync: false
+      - key: NODE_ENV
+        sync: false
+    region: frankfurt
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+  - type: web
+    name: game-prod
+    runtime: node
+    repo: https://github.com/GagaYaba/draw-game
+    branch: main
     plan: free
     envVars:
       - key: PLAYER_RECONNECT_GRACE_MS
