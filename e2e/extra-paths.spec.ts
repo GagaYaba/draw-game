@@ -10,6 +10,7 @@ import {
   openPlayer,
   type Player,
   voteValue,
+  watchSocketUpgrade,
 } from "./helpers";
 
 function collectErrors(players: Player[]): string[] {
@@ -132,17 +133,21 @@ test("conserve le dessin en cours après actualisation, reprend après une coupu
     await expect(validate).toBeDisabled();
     await drawStroke(bob);
     await expect(validate).toBeEnabled();
+    const reloadedUpgrade = watchSocketUpgrade(bob.page);
     await bob.page.reload();
     await expect(bob.page.getByRole("button", { name: "Valider le dessin" })).toBeEnabled();
     await expect(alice.page.getByText("Reconnexion…")).toHaveCount(0);
+    await reloadedUpgrade;
 
     // Bob ferme son onglet : le groupe voit la reconnexion, puis Bob reprend sa place.
     await bob.page.close();
     await expect(alice.page.getByText("Reconnexion…").first()).toBeVisible();
     const returning = await bob.context.newPage();
+    const upgraded = watchSocketUpgrade(returning);
     await returning.goto("/");
     await expect(returning.getByRole("button", { name: "Valider le dessin" })).toBeVisible();
     await expect(alice.page.getByText("Reconnexion…")).toHaveCount(0);
+    await upgraded;
 
     // Bob disparaît plus longtemps que le délai de reconnexion : la partie est annulée.
     await returning.close();
