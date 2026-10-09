@@ -28,7 +28,8 @@ export interface InternalGuessScoreResult {
 
 export interface InternalDrawerScoreResult {
   playerId: string;
-  closeGuessCount: number;
+  /** Écart moyen entre les estimations et le niveau secret. */
+  averageDistance: number;
   pointsEarned: number;
   totalScore: number;
 }
@@ -50,14 +51,30 @@ export interface InternalTurn {
   scoreResult: InternalTurnScoreResult | null;
 }
 
+/** Consigne, niveau secret et dessin d'un joueur pour la manche en cours. */
+export interface RoundEntry {
+  prompt: DrawingPrompt;
+  secretLevel: GuessValue;
+  drawing: DrawingDocument | null;
+  drawingSubmittedAt: number | null;
+}
+
 export interface InternalGame {
   gameId: string;
   phase: Exclude<GamePhase, "LOBBY">;
   totalRounds: number;
   currentRound: number;
+  /** Joueurs de la partie, dans l'ordre du tirage initial (sert à départager les égalités). */
   turnOrder: string[];
-  currentDrawerIndex: number;
-  currentTurn: InternalTurn;
+  /** Identifiant de la manche en cours. */
+  roundId: string;
+  /** Une entrée par joueur : tout le monde dessine en même temps. */
+  entries: Record<string, RoundEntry>;
+  /** Ordre de présentation des dessins, fixé quand tous ont validé leur dessin. */
+  votingOrder: string[];
+  votingIndex: number;
+  /** Dessin en cours de vote ou de révélation ; absent pendant le dessin. */
+  currentTurn: InternalTurn | null;
   usedPromptIds: string[];
   usedTurnIds: string[];
   finishedState: PublicFinishedState | null;
@@ -88,18 +105,21 @@ export interface GameManagerOptions {
   onPublicRoomStateChanged?: (roomCode: string, room: PublicRoomState) => void;
 }
 
+/** Consigne et niveau secret à envoyer en privé à un joueur. */
+export interface PlayerAssignment {
+  socketId: string | null;
+  secret: TurnSecretPayload;
+}
+
 export interface StartGameInternalResult {
   room: PublicRoomState;
-  drawerSocketId: string;
-  secret: TurnSecretPayload;
+  assignments: PlayerAssignment[];
 }
 
 export interface ContinueGameInternalResult {
   room: PublicRoomState;
-  nextTurn?: {
-    drawerSocketId: string | null;
-    secret: TurnSecretPayload;
-  };
+  /** Présent lorsqu'une nouvelle manche commence. */
+  assignments?: PlayerAssignment[];
 }
 
 export interface RequestRematchInternalResult {

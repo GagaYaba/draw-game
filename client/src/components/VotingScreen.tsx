@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 
-import type { GuessValue, PublicGameState, PublicPlayer } from "@drawing-game/shared";
+import type {
+  GuessValue,
+  PublicGamePrompt,
+  PublicGameState,
+  PublicPlayer,
+} from "@drawing-game/shared";
 
 import type { ClientGuessState, PendingRoomAction } from "../hooks/useRoomSession";
 import { DrawingPreview } from "./drawing/DrawingPreview";
@@ -17,7 +22,6 @@ import { GameDialog } from "./ui/GameDialog";
 interface VotingScreenProps {
   game: PublicGameState;
   currentPlayerId: string | null;
-  secretLevel: GuessValue | null;
   guessState: ClientGuessState;
   pendingAction: PendingRoomAction;
   errorMessage: string | null;
@@ -73,10 +77,25 @@ export function GuessConfirmationDialog({
   );
 }
 
-export function VotingScreen({
+export function VotingScreen(props: VotingScreenProps) {
+  const { currentDrawer, prompt } = props.game;
+  if (currentDrawer === null || prompt === null) {
+    return null;
+  }
+
+  return <VotingScreenContent {...props} author={currentDrawer} prompt={prompt} />;
+}
+
+interface VotingScreenContentProps extends VotingScreenProps {
+  author: { id: string; nickname: string };
+  prompt: PublicGamePrompt;
+}
+
+function VotingScreenContent({
   game,
   currentPlayerId,
-  secretLevel,
+  author,
+  prompt,
   guessState,
   pendingAction,
   errorMessage,
@@ -85,9 +104,9 @@ export function VotingScreen({
   onSelectGuess,
   onSubmitGuess,
   onLeaveRoom,
-}: VotingScreenProps) {
+}: VotingScreenContentProps) {
   const [guessToConfirm, setGuessToConfirm] = useState<GuessValue | null>(null);
-  const isDrawer = currentPlayerId === game.currentDrawer.id;
+  const isDrawer = currentPlayerId === author.id;
   const isPending = pendingAction !== null || guessState.isSubmitting || isConnectionBlocked;
   const voting = game.voting;
   const voteProgress =
@@ -134,25 +153,27 @@ export function VotingScreen({
         className="voting-screen"
         prompt={
           <GamePromptHeader
-            statement={game.prompt.statement}
+            statement={prompt.statement}
             gaugePrompt={
               isDrawer ? undefined : (
-                <p id="guess-question-title">Quel niveau le dessinateur devait-il représenter ?</p>
+                <p id="guess-question-title">
+                  Quel niveau {author.nickname} devait-il représenter ?
+                </p>
               )
             }
             gauge={
               isDrawer ? (
                 <ScaleGauge
-                  lowLabel={game.prompt.lowLabel}
-                  highLabel={game.prompt.highLabel}
-                  value={secretLevel}
-                  valueTextLabel="Votre niveau secret"
+                  lowLabel={prompt.lowLabel}
+                  highLabel={prompt.highLabel}
+                  value={null}
+                  valueTextLabel="Niveau secret"
                   size="full"
                 />
               ) : (
                 <GuessScale
-                  lowLabel={game.prompt.lowLabel}
-                  highLabel={game.prompt.highLabel}
+                  lowLabel={prompt.lowLabel}
+                  highLabel={prompt.highLabel}
                   value={displayedGuess}
                   onChange={handleGuessChange}
                   disabled={isPending || submittedGuess !== null}
@@ -163,9 +184,7 @@ export function VotingScreen({
               )
             }
             valueText={
-              isDrawer && secretLevel !== null ? (
-                <GamePromptValue label="Votre niveau secret" value={secretLevel} />
-              ) : displayedGuess !== null ? (
+              !isDrawer && displayedGuess !== null ? (
                 <GamePromptValue label="Votre estimation" value={displayedGuess} />
               ) : undefined
             }
@@ -181,7 +200,7 @@ export function VotingScreen({
           ) : (
             <DrawingPreview
               drawing={game.submittedDrawing.document}
-              description={`Dessin soumis par ${game.currentDrawer.nickname} pour la consigne « ${game.prompt.statement} ».`}
+              description={`Dessin soumis par ${author.nickname} pour la consigne « ${prompt.statement} ».`}
             />
           )}
         </div>
@@ -219,7 +238,7 @@ export function VotingScreen({
                 decorative
                 className="voting-state-mascot voting-state-mascot--drawer-waiting"
               />
-              <p className="card-label">Vote en cours</p>
+              <p className="card-label">Votre dessin est présenté</p>
               <h2 id="drawer-vote-title">Les autres joueurs essaient de deviner votre niveau.</h2>
               <p>Votre niveau reste masqué jusqu’à la révélation.</p>
             </section>

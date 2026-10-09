@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { PublicGameState, PublicPlayer } from "@drawing-game/shared";
+import type { PublicGamePrompt, PublicGameState, PublicPlayer } from "@drawing-game/shared";
 
 import type { PendingRoomAction } from "../hooks/useRoomSession";
 import { GameLeaveAction } from "./game/GameLeaveAction";
@@ -13,8 +13,8 @@ import { ScaleGauge } from "./scale/ScaleGauge";
 
 interface RoundIntroScreenProps {
   game: PublicGameState;
-  currentPlayerId: string | null;
   secretLevel: number | null;
+  prompt: PublicGamePrompt | null;
   pendingAction: PendingRoomAction;
   errorMessage: string | null;
   players?: readonly PublicPlayer[];
@@ -32,8 +32,8 @@ function getSecondsRemaining(phaseEndsAt: number | null) {
 
 export function RoundIntroScreen({
   game,
-  currentPlayerId,
   secretLevel,
+  prompt,
   pendingAction,
   errorMessage,
   players,
@@ -43,7 +43,6 @@ export function RoundIntroScreen({
   const [secondsRemaining, setSecondsRemaining] = useState(() =>
     getSecondsRemaining(game.phaseEndsAt),
   );
-  const isDrawer = currentPlayerId === game.currentDrawer.id;
   const isPending = pendingAction !== null || isConnectionBlocked;
   const introMascotCharacter = game.currentTurnNumber % 2 === 0 ? "pig" : "poop";
 
@@ -78,23 +77,29 @@ export function RoundIntroScreen({
       className="round-intro"
       isBusy={isPending}
       prompt={
-        <GamePromptHeader
-          statement={game.prompt.statement}
-          gauge={
-            <ScaleGauge
-              lowLabel={game.prompt.lowLabel}
-              highLabel={game.prompt.highLabel}
-              value={isDrawer ? secretLevel : null}
-              valueTextLabel="Niveau à représenter"
-              size="full"
-            />
-          }
-          valueText={
-            isDrawer && secretLevel !== null ? (
-              <GamePromptValue label="Niveau à représenter" value={secretLevel} />
-            ) : undefined
-          }
-        />
+        prompt !== null ? (
+          <GamePromptHeader
+            statement={prompt.statement}
+            gauge={
+              <ScaleGauge
+                lowLabel={prompt.lowLabel}
+                highLabel={prompt.highLabel}
+                value={secretLevel}
+                valueTextLabel="Niveau à représenter"
+                size="full"
+              />
+            }
+            valueText={
+              secretLevel !== null ? (
+                <GamePromptValue label="Niveau à représenter" value={secretLevel} />
+              ) : undefined
+            }
+          />
+        ) : (
+          <p className="private-level-loading" role="status" aria-live="polite">
+            Réception de votre consigne et de votre niveau secret…
+          </p>
+        )
       }
     >
       <div className="game-phase-layout__main round-intro-stage">
@@ -106,16 +111,9 @@ export function RoundIntroScreen({
             decorative
             className="round-intro-mascot round-intro-mascot--surprised"
           />
-          <p className="card-label">Prochainement</p>
-          <h2>
-            {isDrawer ? "C’est à vous de dessiner" : `${game.currentDrawer.nickname} va dessiner`}
-          </h2>
-          {!isDrawer && <p>Son niveau reste secret.</p>}
-          {isDrawer && secretLevel === null && (
-            <p className="private-level-loading" role="status" aria-live="polite">
-              Réception de votre niveau secret…
-            </p>
-          )}
+          <p className="card-label">Manche {game.currentRound}</p>
+          <h2>Tout le monde dessine en même temps</h2>
+          <p>Chacun a sa propre consigne et son propre niveau secret.</p>
         </div>
       </div>
 

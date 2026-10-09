@@ -1,4 +1,10 @@
-import type { PublicDrawerResult, PublicGameState, PublicPlayer } from "@drawing-game/shared";
+import type {
+  PublicDrawerResult,
+  PublicGamePrompt,
+  PublicGameState,
+  PublicPlayer,
+  RevealNextStep,
+} from "@drawing-game/shared";
 
 import type { PendingRoomAction } from "../hooks/useRoomSession";
 import { DrawingPreview } from "./drawing/DrawingPreview";
@@ -69,11 +75,8 @@ export function getGuessResultMascotReaction(distance: number): RevealMascotReac
   };
 }
 
-export function getDrawerResultMascotReaction(
-  closeGuessCount: number,
-  totalGuessCount: number,
-): RevealMascotReaction {
-  if (closeGuessCount === 0) {
+export function getDrawerResultMascotReaction(pointsEarned: number): RevealMascotReaction {
+  if (pointsEarned <= 0) {
     return {
       character: "poop",
       expression: "sad",
@@ -81,7 +84,7 @@ export function getDrawerResultMascotReaction(
     };
   }
 
-  if (closeGuessCount >= Math.ceil(totalGuessCount / 2)) {
+  if (pointsEarned >= 2) {
     return {
       character: "pig",
       expression: "dance",
@@ -100,32 +103,52 @@ function formatPoints(points: number) {
   return `${points} point${points === 1 ? "" : "s"}`;
 }
 
-function formatFoundPlayers(count: number) {
-  if (count === 0) {
-    return "Aucun joueur n’a trouvé";
-  }
-
-  if (count === 1) {
-    return "1 joueur a trouvé";
-  }
-
-  return `${count} joueurs ont trouvé`;
+function formatAverageDistance(averageDistance: number) {
+  return (Math.round(averageDistance * 10) / 10).toString().replace(".", ",");
 }
 
 function getDrawerResultMessage(drawerResult: PublicDrawerResult, currentPlayerId: string | null) {
-  const foundPlayers = formatFoundPlayers(drawerResult.closeGuessCount);
+  const average = formatAverageDistance(drawerResult.averageDistance);
   const earnedPoints = formatPoints(drawerResult.pointsEarned);
 
   if (drawerResult.player.id === currentPlayerId) {
-    return `${foundPlayers} votre niveau à ±1. Vous gagnez ${earnedPoints}.`;
+    return `Les estimations étaient en moyenne à ${average} de votre niveau. Vous gagnez ${earnedPoints}.`;
   }
 
-  return `${foundPlayers} le niveau de ${drawerResult.player.nickname} à ±1. ${drawerResult.player.nickname} gagne ${earnedPoints}.`;
+  return `Les estimations étaient en moyenne à ${average} du niveau de ${drawerResult.player.nickname}. ${drawerResult.player.nickname} gagne ${earnedPoints}.`;
 }
 
-export function RevealScreen({
+const CONTINUE_LABELS: Record<RevealNextStep, string> = {
+  NEXT_DRAWING: "Dessin suivant",
+  NEXT_ROUND: "Manche suivante",
+  FINAL: "Voir le classement final",
+};
+
+const CONTINUATION_TITLES: Record<RevealNextStep, string> = {
+  NEXT_DRAWING: "Le dessin suivant va être présenté.",
+  NEXT_ROUND: "Une nouvelle manche commence avec de nouvelles consignes.",
+  FINAL: "Tous les dessins ont été présentés.",
+};
+
+export function RevealScreen(props: RevealScreenProps) {
+  const { currentDrawer, prompt } = props.game;
+  if (currentDrawer === null || prompt === null) {
+    return null;
+  }
+
+  return <RevealScreenContent {...props} author={currentDrawer} prompt={prompt} />;
+}
+
+interface RevealScreenContentProps extends RevealScreenProps {
+  author: { id: string; nickname: string };
+  prompt: PublicGamePrompt;
+}
+
+function RevealScreenContent({
   game,
   currentPlayerId,
+  author,
+  prompt,
   isHost,
   pendingAction,
   errorMessage,
@@ -133,28 +156,25 @@ export function RevealScreen({
   isConnectionBlocked = false,
   onContinueGame,
   onLeaveRoom,
-}: RevealScreenProps) {
+}: RevealScreenContentProps) {
   const reveal = game.reveal;
   const isPending = pendingAction !== null || isConnectionBlocked;
   const isContinuing = pendingAction === "continue";
-  const continueLabel =
-    reveal?.nextDrawer === null ? "Voir le classement final" : "Lancer le prochain tour";
+  const continueLabel = reveal === null ? "" : CONTINUE_LABELS[reveal.nextStep];
   const drawerReaction =
-    reveal === null
-      ? null
-      : getDrawerResultMascotReaction(reveal.drawerResult.closeGuessCount, reveal.guesses.length);
+    reveal === null ? null : getDrawerResultMascotReaction(reveal.drawerResult.pointsEarned);
 
   return (
     <GamePhaseLayout
-      ariaLabel="Révélation du tour"
+      ariaLabel="Révélation du dessin"
       className="reveal-screen"
       prompt={
         <GamePromptHeader
-          statement={game.prompt.statement}
+          statement={prompt.statement}
           gauge={
             <ScaleGauge
-              lowLabel={game.prompt.lowLabel}
-              highLabel={game.prompt.highLabel}
+              lowLabel={prompt.lowLabel}
+              highLabel={prompt.highLabel}
               value={reveal?.secretLevel ?? null}
               valueTextLabel="Niveau secret révélé"
               size="full"
@@ -181,7 +201,7 @@ export function RevealScreen({
         ) : (
           <DrawingPreview
             drawing={game.submittedDrawing.document}
-            description={`Dessin révélé de ${game.currentDrawer.nickname} pour la consigne « ${game.prompt.statement} ».`}
+            description={`Dessin révélé de ${author.nickname} pour la consigne « ${prompt.statement} ».`}
           />
         )}
       </div>
@@ -220,7 +240,7 @@ export function RevealScreen({
                     className={`reveal-reaction-mascot reveal-reaction-mascot--drawer reveal-reaction-mascot--${drawerReaction.modifier}`}
                   />
                 )}
-                <p className="card-label">Points du dessinateur</p>
+                <p className="card-label">Points de l’auteur</p>
                 <h2 id="drawer-result-title">
                   {drawerResultTitle(reveal.drawerResult, currentPlayerId)}
                 </h2>
@@ -233,11 +253,11 @@ export function RevealScreen({
               <section className="reveal-results" aria-labelledby="reveal-results-title">
                 <div className="reveal-results__heading">
                   <p className="card-label">Estimations validées</p>
-                  <h2 id="reveal-results-title">Points du tour</h2>
+                  <h2 id="reveal-results-title">Points du dessin</h2>
                 </div>
                 <ol
                   className="reveal-result-list"
-                  aria-label="Estimations et points gagnés pendant le tour"
+                  aria-label="Estimations et points gagnés pour ce dessin"
                   // biome-ignore lint/a11y/noNoninteractiveTabindex: la liste défile horizontalement et doit rester accessible au clavier.
                   tabIndex={0}
                 >
@@ -295,11 +315,7 @@ export function RevealScreen({
             aria-labelledby="reveal-continuation-title"
           >
             <p className="card-label">Suite de la partie</p>
-            <h2 id="reveal-continuation-title">
-              {reveal.nextDrawer === null
-                ? "Tous les tours sont terminés."
-                : `${reveal.nextDrawer.nickname} dessinera au prochain tour.`}
-            </h2>
+            <h2 id="reveal-continuation-title">{CONTINUATION_TITLES[reveal.nextStep]}</h2>
             {isHost ? (
               <button
                 className="button button--primary reveal-continue-button"

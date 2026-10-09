@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { type Browser, type BrowserContext, expect, type Page } from "@playwright/test";
 
 export interface Player {
   name: string;
@@ -31,20 +31,10 @@ export async function joinRoom(player: Player, code: string): Promise<void> {
   await expect(player.page.getByRole("heading", { name: "Votre lobby" })).toBeVisible();
 }
 
-/** Trouve le joueur dont l'écran propose le dessin. */
-export async function findDrawer(players: Player[]): Promise<Player> {
-  for (;;) {
-    for (const player of players) {
-      if (await player.page.getByRole("button", { name: "Valider le dessin" }).isVisible()) {
-        return player;
-      }
-    }
-    await players[0]?.page.waitForTimeout(200);
-  }
-}
-
+/** Dessine un trait puis valide le dessin, une fois l'éditeur affiché. */
 export async function drawSimpleStroke(player: Player): Promise<void> {
   const canvas = player.page.locator("canvas[aria-label^='Zone de dessin']");
+  await canvas.waitFor({ state: "visible" });
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Zone de dessin non visible.");
   await player.page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.3);
@@ -53,6 +43,18 @@ export async function drawSimpleStroke(player: Player): Promise<void> {
   await player.page.mouse.up();
   await player.page.getByRole("button", { name: "Valider le dessin" }).click();
   await player.page.getByRole("dialog").getByRole("button", { name: "Valider mon dessin" }).click();
+}
+
+/** Trouve le joueur dont le dessin est présenté : il ne vote pas. */
+export async function findAuthor(players: Player[]): Promise<Player> {
+  for (;;) {
+    for (const player of players) {
+      if (await player.page.getByText("Votre dessin est présenté").isVisible()) {
+        return player;
+      }
+    }
+    await players[0]?.page.waitForTimeout(200);
+  }
 }
 
 export async function voteValue(player: Player, value: number): Promise<void> {

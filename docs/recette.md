@@ -11,7 +11,7 @@ Statut du document : les besoins et les user stories sont rédigés à partir du
 | B1 | Jouer en ligne à un jeu de dessin et d'estimation, de 2 à 6 joueurs, sans créer de compte. |
 | B2 | Rejoindre une partie par un code de salon ou un lien d'invitation. |
 | B3 | Jouer sur tout appareil : ordinateur (souris), tablette et téléphone (tactile). |
-| B4 | Jouer deux manches complètes, avec un classement final et une revanche. |
+| B4 | Jouer deux manches : à chaque manche tous dessinent en même temps, puis les dessins sont présentés et estimés un par un ; classement final et revanche. |
 | B5 | Retrouver sa place après une actualisation ou une coupure brève. |
 | B6 | Garantir l'équité : le serveur décide des rôles, des phases, des secrets et des scores. |
 | B7 | Résister aux abus courants (inondation de requêtes, création massive de salons, devinette de codes). |
@@ -37,14 +37,14 @@ Format : « En tant que … je veux … afin de … ».
 
 | Réf. | Besoin | User story |
 | --- | --- | --- |
-| US08 | B4 | En tant que joueur, je vois l'introduction du tour (consigne, dessinateur) avant que le dessin commence. |
-| US09 | B3, B4, B6 | En tant que dessinateur, je connais seul le niveau secret et je dessine avec un stylo, une gomme, un pot de peinture, des couleurs et des épaisseurs, avec annuler et tout effacer. |
-| US10 | B4 | En tant que dessinateur, je valide mon dessin après confirmation afin de l'envoyer aux votants. |
-| US11 | B4, B6 | En tant que votant, je vois le dessin et j'estime un niveau de 1 à 10, avec confirmation, une seule fois par tour. |
-| US12 | B6 | En tant que dessinateur, je ne peux pas voter pour mon propre dessin. |
-| US13 | B4 | En tant que joueur, je vois à la révélation le niveau secret, chaque estimation, les points gagnés et le classement. |
-| US14 | B4 | En tant qu'hôte, je passe au tour suivant ou au classement final. |
-| US15 | B4 | En tant que groupe, nous jouons deux manches : chaque joueur dessine une fois par manche. |
+| US08 | B4, B6 | En tant que joueur, je vois l'introduction de la manche et je reçois ma propre consigne et mon propre niveau secret. |
+| US09 | B3, B4, B6 | En tant que joueur, je dessine ma consigne en même temps que les autres, avec un stylo, une gomme, un pot de peinture, des couleurs et des épaisseurs, avec annuler et tout effacer ; je suis le seul à connaître mon niveau. |
+| US10 | B4 | En tant que joueur, je valide mon dessin après confirmation, puis j'attends que tous aient validé le leur, avec l'avancement affiché. |
+| US11 | B4, B6 | En tant que votant, je vois les dessins un par un et j'estime un niveau de 1 à 10, avec confirmation, une seule fois par dessin. |
+| US12 | B6 | En tant qu'auteur, je ne peux pas voter pour mon propre dessin. |
+| US13 | B4 | En tant que joueur, je vois après chaque dessin le niveau secret, chaque estimation, les points gagnés et le classement. |
+| US14 | B4 | En tant qu'hôte, je passe au dessin suivant, à la manche suivante, puis au classement final. |
+| US15 | B4 | En tant que groupe, nous jouons deux manches : à chacune, chaque joueur dessine une fois et chaque dessin est présenté une fois. |
 | US16 | B4 | En tant que joueur, je vois le classement final et les vainqueurs, y compris en cas d'égalité. |
 | US17 | B4 | En tant qu'hôte, je propose une revanche qui ramène tout le monde au salon. |
 
@@ -68,6 +68,16 @@ Format : « En tant que … je veux … afin de … ».
 | US26 | B8 | En tant que joueur en situation de handicap, je joue au clavier et avec un lecteur d'écran, avec des contrastes suffisants. |
 | US27 | B2, B6 | En tant que joueur, je suis informé clairement lorsque le serveur est indisponible ou lorsqu'une erreur survient. |
 
+## 2 bis. Règles du jeu retenues
+
+Décisions du porteur du projet (9 octobre 2026), qui remplacent le principe d'un dessinateur par tour :
+
+- À chaque manche, **tous les joueurs dessinent en même temps**, chacun avec **sa propre consigne et son propre niveau secret**.
+- Quand tous ont validé leur dessin, les dessins sont **présentés un par un**, dans un ordre mélangé. Les autres joueurs estiment le niveau ; la révélation a lieu **après chaque dessin**.
+- **Barème** : un votant gagne 2 points pour une estimation exacte, 1 point pour un écart de 1, sinon 0. L'auteur gagne la moyenne arrondie des points de ses votants (0, 1 ou 2).
+- **Aucun minuteur** ne limite le dessin ni la manche. Un joueur déconnecté plus de 60 secondes annule la partie, comme auparavant.
+- Deux manches ; salons de 2 à 6 joueurs.
+
 ## 3. Plan de test
 
 | Type | Objet | Moyens | Critère de réussite |
@@ -82,7 +92,7 @@ Règle d'exécution : chaque exécution consigne la version de l'application (co
 
 ## 4. Cahier de recettes
 
-Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existant ; *À automatiser* indique un test prévu (étape du plan entre parenthèses) ; *Manuel* indique un essai à exécuter à la main. Colonne « Résultat » : « Réussi en CI » signifie que le test permanent a réussi sur la CI de la PR #14 (9 octobre 2026) ; « Non exécuté » signifie qu'aucun résultat n'est consigné.
+Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existant ; *À automatiser* indique un test prévu (étape du plan entre parenthèses) ; *Manuel* indique un essai à exécuter à la main. Colonne « Résultat » : « Réussi en CI » signifie que le test permanent a réussi sur la CI de la PR #14 (9 octobre 2026) ; « Réussi (local) » signifie que le test a réussi sous Node 22.12.0 sur le poste de développement, sa CI restant à confirmer ; « Non exécuté » signifie qu'aucun résultat n'est consigné.
 
 ### Salon
 
@@ -101,17 +111,19 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
-| RC09 | US08, US09, US10, US11, US13, US14, US15, US16 | Parcours complet de six tours avec trois joueurs. | Chaque tour : dessin, estimations, révélation, points ; classement final après le sixième tour. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
-| RC10 | US09 | Seul le dessinateur reçoit le niveau secret ; l'état public n'en contient pas avant la révélation. | Un seul destinataire ; aucune fuite avant la révélation. | Sécurité | À automatiser (2) | Non exécuté |
+| RC09 | US08, US09, US10, US11, US13, US14, US15, US16 | Parcours complet à trois joueurs : deux manches, chacune avec trois dessins validés en même temps puis estimés un par un. | Chaque dessin est présenté une fois ; points et révélation après chaque dessin ; classement final après la seconde manche. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local, Node 22.12.0) ; CI à confirmer |
+| RC10 | US08, US09 | Chaque joueur reçoit sa propre consigne et son niveau secret ; l'état public ne contient aucun niveau avant la révélation. | Trois consignes distinctes par manche ; aucune fuite dans l'état public. | Sécurité | Unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
 | RC11 | US09 | Utiliser stylo, gomme, pot de peinture, couleurs, épaisseurs, annuler, tout effacer. | Chaque outil modifie le dessin comme attendu. | Fonctionnel | Manuel, puis E2E ciblé (3) | Non exécuté |
 | RC12 | US10 | Valider un dessin vide ; valider un dessin avec confirmation ; annuler la confirmation. | Le bouton de validation est inactif sans trait ; l'annulation conserve le dessin. | Fonctionnel | À automatiser (3) | Non exécuté |
-| RC13 | US10, US23 | Un non-dessinateur ou un dessin hors phase tente d'envoyer un dessin ; second envoi ; dessin dépassant 250 traits. | Refus pour chaque cas. | Sécurité | À automatiser (2) | Non exécuté |
-| RC14 | US11, US12, US23 | Le dessinateur tente d'estimer ; doublon d'estimation ; valeur hors 1 à 10 ; estimation d'un tour périmé ; estimation après révélation. | Refus pour chaque cas, sans changer l'état du jeu. | Sécurité | À automatiser (2) | Non exécuté |
-| RC15 | US13 | Calcul des points : estimation exacte, à distance 1, à distance 5 ou plus ; points du dessinateur selon le nombre d'estimations proches. | Points de l'estimation = max(0, 5 − distance) ; points du dessinateur = min(5, nombre d'estimations à distance 0 ou 1). | Structurel | À automatiser (2) | Non exécuté |
+| RC13 | US10, US23 | Second envoi d'un dessin ; envoi hors phase ; dessin dépassant 250 traits. | Refus pour chaque cas. | Sécurité | Unitaire `game.test.ts` (second envoi) ; reste à automatiser (2) | Partiel : second envoi réussi (local) |
+| RC14 | US11, US12, US23 | L'auteur tente d'estimer son dessin ; doublon d'estimation ; valeur hors 1 à 10 ; estimation d'un dessin périmé ; estimation après révélation. | Refus pour chaque cas, sans changer l'état du jeu. | Sécurité | Unitaire `game.test.ts` (auteur) ; reste à automatiser (2) | Partiel : refus de l'auteur réussi (local) |
+| RC15 | US13 | Barème : estimation exacte, écart de 1, écart de 2 ou plus ; points de l'auteur selon les points de ses votants. | Votant : 2, 1 ou 0 point ; auteur : moyenne arrondie des points de ses votants. | Structurel | Unitaire `game.test.ts` (barème paramétré) | Réussi (local) ; CI à confirmer |
 | RC16 | US16 | Égalité au classement final. | Tous les ex æquo sont annoncés vainqueurs. | Fonctionnel | À automatiser (2) | Non exécuté |
-| RC17 | US17 | L'hôte propose une revanche ; un non-hôte essaie. | Retour au lobby de tous, scores et états prêts remis à zéro ; refus pour le non-hôte. | Fonctionnel | E2E `main-game.spec.ts` (hôte) ; refus à automatiser (2) | Partiel : hôte réussi en CI |
-| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par tour ; la partie se termine normalement. | Fonctionnel | À automatiser (3) | Non exécuté |
-| RC19 | US25 | Partie à six joueurs. | Six joueurs dessinent à tour de rôle sur deux manches. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC17 | US17 | L'hôte propose une revanche ; un non-hôte essaie. | Retour au lobby de tous, scores et états prêts remis à zéro ; refus pour le non-hôte. | Fonctionnel | E2E `main-game.spec.ts` (hôte) ; refus à automatiser (2) | Partiel : hôte réussi (local) |
+| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par dessin ; la partie se termine normalement. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC19 | US25 | Partie à six joueurs. | Six joueurs dessinent en même temps sur deux manches. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC41 | US10 | Un joueur valide son dessin avant les autres. | Il voit « En attente des autres joueurs » et la liste de ceux qui dessinent encore ; les votes ne démarrent qu'après la dernière validation. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
+| RC42 | US14, US15 | Enchaînement des dessins : dessin suivant, manche suivante, classement final. | Les libellés et la suite correspondent à l'étape ; un non-hôte ne peut pas continuer. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
 
 ### Continuité et réseau
 

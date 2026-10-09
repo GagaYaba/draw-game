@@ -1,20 +1,21 @@
-import { expect, test, type ConsoleMessage } from "@playwright/test";
+import { type ConsoleMessage, expect, test } from "@playwright/test";
 
 import {
   createRoom,
   drawSimpleStroke,
-  findDrawer,
+  findAuthor,
   joinRoom,
   openPlayer,
   type Player,
   voteValue,
 } from "./helpers";
 
-const TURNS = 6;
+const ROUNDS = 2;
 
 /**
- * Parcours principal : salon à trois joueurs, deux manches complètes,
- * restauration d'un votant après actualisation, classement, revanche et départ.
+ * Parcours principal : salon à trois joueurs, deux manches où tout le monde dessine
+ * en même temps, dessins présentés un par un, restauration d'un votant après
+ * actualisation, classement, revanche et départ.
  */
 test("une partie complète à trois joueurs, avec restauration et revanche", async ({
   browser,
@@ -52,29 +53,46 @@ test("une partie complète à trois joueurs, avec restauration et revanche", asy
     await alice.page.getByRole("button", { name: "Lancer la partie" }).click();
 
     let restoredVoter = false;
-    for (let turn = 1; turn <= TURNS; turn += 1) {
-      const drawer = await findDrawer(players);
-      const [firstVoter, secondVoter] = players.filter((player) => player !== drawer);
-      if (!firstVoter || !secondVoter) throw new Error("Deux votants attendus.");
+    for (let round = 1; round <= ROUNDS; round += 1) {
+      // Tout le monde dessine en même temps : Alice valide la première et attend les autres.
+      await drawSimpleStroke(alice);
+      await expect(alice.page.getByText("En attente des autres joueurs.")).toBeVisible();
+      await expect(bob.page.getByRole("button", { name: "Valider le dessin" })).toBeVisible();
+      await drawSimpleStroke(bob);
+      await expect(alice.page.getByText("Encore en train de dessiner : Chloe.")).toBeVisible();
+      await drawSimpleStroke(chloe);
 
-      await drawSimpleStroke(drawer);
-      await expect(firstVoter.page.getByRole("button", { name: "Choisir 5 sur 10" })).toBeVisible();
+      // Les trois dessins sont ensuite présentés un par un.
+      for (let drawing = 1; drawing <= players.length; drawing += 1) {
+        const author = await findAuthor(players);
+        const [firstVoter, secondVoter] = players.filter((player) => player !== author);
+        if (!firstVoter || !secondVoter) throw new Error("Deux votants attendus.");
 
-      if (turn === 1) {
-        // Le votant est actualisé pendant son estimation : la session doit être restaurée.
-        await firstVoter.page.reload();
         await expect(
           firstVoter.page.getByRole("button", { name: "Choisir 5 sur 10" }),
         ).toBeVisible();
-        restoredVoter = true;
+
+        if (round === 1 && drawing === 1) {
+          // Le votant est actualisé pendant son estimation : la session doit être restaurée.
+          await firstVoter.page.reload();
+          await expect(
+            firstVoter.page.getByRole("button", { name: "Choisir 5 sur 10" }),
+          ).toBeVisible();
+          restoredVoter = true;
+        }
+
+        await voteValue(firstVoter, 4);
+        await voteValue(secondVoter, 7);
+
+        await expect(alice.page.getByText("Estimations validées").first()).toBeVisible();
+        const continueLabel =
+          drawing < players.length
+            ? "Dessin suivant"
+            : round < ROUNDS
+              ? "Manche suivante"
+              : "Voir le classement final";
+        await alice.page.getByRole("button", { name: continueLabel }).click();
       }
-
-      await voteValue(firstVoter, 4);
-      await voteValue(secondVoter, 7);
-
-      await expect(alice.page.getByText("Estimations validées").first()).toBeVisible();
-      const continueLabel = turn === TURNS ? "Voir le classement final" : "Lancer le prochain tour";
-      await alice.page.getByRole("button", { name: continueLabel }).click();
     }
 
     expect(restoredVoter).toBe(true);

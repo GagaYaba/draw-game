@@ -52,15 +52,20 @@ export interface PublicGuessResult {
   totalScore: number;
 }
 
+/** Résultat de l'auteur du dessin révélé. */
 export interface PublicDrawerResult {
   player: {
     id: string;
     nickname: string;
   };
-  closeGuessCount: number;
+  /** Écart moyen entre les estimations des votants et le niveau secret. */
+  averageDistance: number;
   pointsEarned: number;
   totalScore: number;
 }
+
+/** Suite de la partie après la révélation d'un dessin. */
+export type RevealNextStep = "NEXT_DRAWING" | "NEXT_ROUND" | "FINAL";
 
 export interface PublicLeaderboardEntry {
   rank: number;
@@ -76,10 +81,12 @@ export interface PublicRevealState {
   guesses: PublicGuessResult[];
   drawerResult: PublicDrawerResult;
   leaderboard: PublicLeaderboardEntry[];
-  nextDrawer: {
-    id: string;
-    nickname: string;
-  } | null;
+  nextStep: RevealNextStep;
+}
+
+/** Avancement du dessin simultané : joueurs ayant déjà validé leur dessin. */
+export interface PublicDrawingProgress {
+  submittedPlayerIds: string[];
 }
 
 export interface PublicFinishedState {
@@ -101,12 +108,15 @@ export interface PublicGameState {
   currentRound: number;
   currentTurnNumber: number;
   totalTurns: number;
+  /** Auteur du dessin présenté ; absent tant que tous les joueurs dessinent. */
   currentDrawer: {
     id: string;
     nickname: string;
-  };
-  prompt: PublicGamePrompt;
+  } | null;
+  /** Consigne du dessin présenté ; chaque joueur reçoit la sienne en privé pendant le dessin. */
+  prompt: PublicGamePrompt | null;
   phaseEndsAt: number | null;
+  drawing: PublicDrawingProgress | null;
   submittedDrawing: PublicSubmittedDrawing | null;
   voting: PublicVotingState | null;
   reveal: PublicRevealState | null;
@@ -247,6 +257,7 @@ export interface RestoredPrivatePlayerState {
   gameId: string | null;
   turnId: string | null;
   secretLevel: GuessValue | null;
+  prompt: PublicGamePrompt | null;
   submittedGuess: SubmitGuessSuccessData | null;
   isCurrentDrawer: boolean;
 }
@@ -267,12 +278,16 @@ export interface RequestRematchSuccessData {
   room: PublicRoomState;
 }
 
+/** Consigne et niveau secret propres à un joueur, envoyés en privé au début de chaque manche. */
 export interface TurnSecretPayload {
   roomCode: string;
   gameId: string;
+  /** Identifiant de la manche en cours. */
   turnId: string;
+  round: number;
   drawerPlayerId: string;
   secretLevel: number;
+  prompt: PublicGamePrompt;
 }
 
 export type GameCancellationReason = "PLAYER_LEFT" | "PLAYER_DISCONNECTED" | "RECONNECT_TIMEOUT";

@@ -1,7 +1,7 @@
-import type { PublicLeaderboardEntry } from "@drawing-game/shared";
+import type { PublicLeaderboardEntry, RevealNextStep } from "@drawing-game/shared";
 
 import { RoomManagerError, type InternalPlayer } from "../rooms/room-types.js";
-import type { InternalGame, InternalTurnScoreResult } from "./game-types.js";
+import type { InternalGame, InternalTurn, InternalTurnScoreResult } from "./game-types.js";
 
 function validatePlayerScore(player: InternalPlayer): void {
   if (!Number.isSafeInteger(player.score) || player.score < 0) {
@@ -18,76 +18,67 @@ export function cloneTurnScoreResult(result: InternalTurnScoreResult): InternalT
   };
 }
 
+/** Estimation exacte : 2 points ; écart de 1 : 1 point ; au-delà : 0. */
 export function calculateGuessPoints(distance: number): number {
   if (!Number.isFinite(distance) || !Number.isInteger(distance) || distance < 0) {
     return 0;
   }
 
-  return Math.max(0, 5 - distance);
+  if (distance === 0) {
+    return 2;
+  }
+
+  return distance === 1 ? 1 : 0;
 }
 
+/** L'auteur gagne la moyenne arrondie des points de ses votants (0 à 2). */
 export function calculateDrawerPoints(distances: readonly number[]): number {
-  const closeGuessCount = distances.reduce(
-    (count, distance) =>
-      Number.isFinite(distance) && Number.isInteger(distance) && distance >= 0 && distance <= 1
-        ? count + 1
-        : count,
+  if (distances.length === 0) {
+    return 0;
+  }
+
+  const totalPoints = distances.reduce(
+    (total, distance) => total + calculateGuessPoints(distance),
     0,
   );
 
-  return Math.min(5, closeGuessCount);
+  return Math.round(totalPoints / distances.length);
 }
 
-export interface NextTurnPosition {
-  currentRound: number;
-  currentDrawerIndex: number;
-  currentTurnNumber: number;
+export function requireCurrentTurn(game: Pick<InternalGame, "currentTurn">): InternalTurn {
+  if (game.currentTurn === null) {
+    throw new RoomManagerError("INTERNAL_ERROR", "Aucun dessin n'est en cours de vote.");
+  }
+
+  return game.currentTurn;
 }
 
-type TurnPositionSource = Pick<
+type NextStepSource = Pick<
   InternalGame,
-  "currentRound" | "currentDrawerIndex" | "totalRounds" | "turnOrder"
+  "currentRound" | "totalRounds" | "votingIndex" | "votingOrder"
 >;
 
-export function getNextTurnPosition(game: TurnPositionSource): NextTurnPosition | null {
-  const playerCount = game.turnOrder.length;
-
+/** Détermine ce qui suit la révélation du dessin en cours. */
+export function getNextStep(game: NextStepSource): RevealNextStep {
   if (
-    playerCount < 1 ||
+    game.votingOrder.length < 1 ||
+    !Number.isSafeInteger(game.votingIndex) ||
+    game.votingIndex < 0 ||
+    game.votingIndex >= game.votingOrder.length ||
     !Number.isSafeInteger(game.totalRounds) ||
     game.totalRounds < 1 ||
     !Number.isSafeInteger(game.currentRound) ||
     game.currentRound < 1 ||
-    game.currentRound > game.totalRounds ||
-    !Number.isSafeInteger(game.currentDrawerIndex) ||
-    game.currentDrawerIndex < 0 ||
-    game.currentDrawerIndex >= playerCount
+    game.currentRound > game.totalRounds
   ) {
-    throw new RoomManagerError("INTERNAL_ERROR", "La position du tour actuel est invalide.");
+    throw new RoomManagerError("INTERNAL_ERROR", "La position du dessin actuel est invalide.");
   }
 
-  const nextDrawerIndex = game.currentDrawerIndex + 1;
-  if (nextDrawerIndex < playerCount) {
-    return {
-      currentRound: game.currentRound,
-      currentDrawerIndex: nextDrawerIndex,
-      currentTurnNumber: (game.currentRound - 1) * playerCount + nextDrawerIndex + 1,
-    };
+  if (game.votingIndex + 1 < game.votingOrder.length) {
+    return "NEXT_DRAWING";
   }
 
-  if (game.currentRound >= game.totalRounds) {
-    return null;
-  }
-
-  return {
-    currentRound: game.currentRound + 1,
-    currentDrawerIndex: 0,
-    currentTurnNumber: game.currentRound * playerCount + 1,
-  };
-}
-
-export function hasNextTurn(game: TurnPositionSource): boolean {
-  return getNextTurnPosition(game) !== null;
+  return game.currentRound < game.totalRounds ? "NEXT_ROUND" : "FINAL";
 }
 
 export function buildLeaderboard(
@@ -135,12 +126,15 @@ export function getEligibleVoterIds(
   game: InternalGame,
   players: readonly InternalPlayer[],
 ): string[] {
+  if (game.currentTurn === null) {
+    return [];
+  }
+
+  const authorId = game.currentTurn.drawerPlayerId;
   const gamePlayerIds = new Set(game.turnOrder);
 
   return players
-    .filter(
-      (player) => player.id !== game.currentTurn.drawerPlayerId && gamePlayerIds.has(player.id),
-    )
+    .filter((player) => player.id !== authorId && gamePlayerIds.has(player.id))
     .map((player) => player.id);
 }
 
@@ -148,8 +142,10 @@ export function getSubmittedGuessCount(
   game: InternalGame,
   eligibleVoterIds: readonly string[],
 ): number {
+  const guesses = game.currentTurn?.guesses ?? {};
+
   return eligibleVoterIds.reduce(
-    (count, playerId) => (Object.hasOwn(game.currentTurn.guesses, playerId) ? count + 1 : count),
+    (count, playerId) => (Object.hasOwn(guesses, playerId) ? count + 1 : count),
     0,
   );
 }
@@ -169,7 +165,7 @@ export function applyTurnScores(
   players: readonly InternalPlayer[],
   appliedAt: number,
 ): InternalTurnScoreResult {
-  const turn = game.currentTurn;
+  const turn = requireCurrentTurn(game);
   const hasAppliedTimestamp = turn.scoresAppliedAt !== null;
   const hasScoreResult = turn.scoreResult !== null;
 
@@ -228,14 +224,15 @@ export function applyTurnScores(
     };
   }
 
-  const closeGuessCount = distances.filter((distance) => distance <= 1).length;
+  const averageDistance =
+    distances.reduce((total, distance) => total + distance, 0) / distances.length;
   const drawerPoints = calculateDrawerPoints(distances);
   const drawerTotalScore = drawer.score + drawerPoints;
   const result: InternalTurnScoreResult = {
     guesses: guessResults,
     drawer: {
       playerId: drawer.id,
-      closeGuessCount,
+      averageDistance,
       pointsEarned: drawerPoints,
       totalScore: drawerTotalScore,
     },
