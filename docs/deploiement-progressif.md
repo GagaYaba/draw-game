@@ -68,8 +68,8 @@ Les lignes sont complétées après exécution observable (aucune n'est acquise 
 
 | Preuve | Date | Résultat | Statut |
 | --- | --- | --- | --- |
-| Contrôle après déploiement sur la préproduction | | | À faire |
-| Création de `game-prod` et premier déploiement sur `main` | | | À faire |
+| Contrôle après déploiement sur la préproduction | 9 octobre 2026 | `scripts/smoke-check.mjs https://drawing-scale-game.onrender.com 7d44217…` : santé 200 (1,3 s), commit servi `7d44217` = fusion de la PR #22, page client servie, ping Socket.IO 47 ms. | Réalisé |
+| Création de `game-prod` et premier déploiement sur `main` | 9 octobre 2026 | Service créé par le Blueprint ; premier déploiement **en échec**, attendu car `main` ne contient que le commit d'amorçage. À refaire après la promotion. | Partiel |
 | Contrôle après déploiement sur la production | | | À faire |
 | Déploiement automatique observé sans déclenchement manuel (commit, heure) | | | À faire |
 | Retour arrière exécuté sur la préproduction, puis commit servi vérifié | | | À faire |
