@@ -139,6 +139,9 @@ jobs:
       - name: Build production bundles
         run: npm run build
 
+      - name: Check client weight budget
+        run: npm run perf:budget
+
   dependency-audit:
     name: Dependency audit
     runs-on: ubuntu-latest
