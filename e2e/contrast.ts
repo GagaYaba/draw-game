@@ -16,6 +16,28 @@ interface Measure {
 }
 
 /**
+ * Attend la fin des animations et transitions finies (fondu, couleur d'un bouton qui vient d'être
+ * activé), pour mesurer l'état final. L'attente est bornée : une animation qui ne progresse pas
+ * (page non affichée) ne doit pas bloquer le test.
+ */
+export async function settleAnimations(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.effect?.getComputedTiming().iterations !== Number.POSITIVE_INFINITY,
+          )
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]),
+  );
+}
+
+/**
  * Contraste réellement affiché, mesuré par échantillonnage.
  *
  * axe-core ne peut pas décider du contraste sur les fonds en dégradé, images ou pseudo-éléments
@@ -26,18 +48,7 @@ interface Measure {
  * Les ombres portées du texte ne sont pas prises en compte.
  */
 export async function collectContrastFindings(page: Page, screen: string): Promise<string[]> {
-  // Les apparitions animées (fondu d'une boîte de dialogue) doivent être terminées avant la mesure.
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter(
-          (animation) =>
-            animation.effect?.getComputedTiming().iterations !== Number.POSITIVE_INFINITY,
-        )
-        .map((animation) => animation.finished.catch(() => undefined)),
-    ),
-  );
+  await settleAnimations(page);
 
   const items = await page.evaluate((): TextItem[] => {
     const parse = (value: string): [number, number, number, number] => {

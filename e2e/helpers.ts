@@ -7,6 +7,8 @@ import {
   type Page,
 } from "@playwright/test";
 
+import { settleAnimations } from "./contrast";
+
 export interface Player {
   name: string;
   context: BrowserContext;
@@ -108,17 +110,7 @@ export async function collectAccessibilityFindings(
 ): Promise<string[]> {
   // Les transitions en cours (bouton qui vient d'être activé) donnent des couleurs intermédiaires :
   // on mesure l'état final, comme le ferait un utilisateur après la transition.
-  await player.page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        .filter(
-          (animation) =>
-            animation.effect?.getComputedTiming().iterations !== Number.POSITIVE_INFINITY,
-        )
-        .map((animation) => animation.finished.catch(() => undefined)),
-    ),
-  );
+  await settleAnimations(player.page);
   const results = await new AxeBuilder({ page: player.page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
     .analyze();

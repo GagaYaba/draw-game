@@ -21,6 +21,8 @@ test("respecte les règles WCAG 2.1 AA automatisables sur chaque écran, sans d�
   baseURL,
 }) => {
   if (!baseURL) throw new Error("baseURL absent de la configuration.");
+  // Contrôles d'axe-core et de contraste (captures) sur une douzaine d'écrans : plus long que la limite par défaut.
+  test.setTimeout(300_000);
   const alice = await openPlayer(browser, "Alice", baseURL, {
     context: { viewport: { width: 320, height: 640 } },
   });
