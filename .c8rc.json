@@ -1,0 +1,23 @@
+{
+  "all": true,
+  "src": ["server/src", "shared/src", "client/src"],
+  "include": [
+    "server/src/**/*.ts",
+    "shared/src/**/*.ts",
+    "shared/dist/**/*.js",
+    "client/src/**/*.ts",
+    "client/src/**/*.tsx"
+  ],
+  "exclude": [
+    "**/*.d.ts",
+    "**/*.css",
+    "server/src/game/game-types.ts",
+    "shared/src/types.ts",
+    "shared/dist/types.js"
+  ],
+  "excludeAfterRemap": true,
+  "reporter": ["text-summary", "json-summary"],
+  "reports-dir": "coverage",
+  "check-coverage": true,
+  "lines": 70
+}

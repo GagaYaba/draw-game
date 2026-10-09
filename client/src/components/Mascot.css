@@ -1,0 +1,87 @@
+.mascot {
+  display: block;
+  width: var(--mascot-size);
+  height: var(--mascot-size);
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.mascot--xs {
+  --mascot-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+.mascot--sm {
+  --mascot-size: clamp(2.5rem, 4vw, 3.75rem);
+}
+
+.mascot--md {
+  --mascot-size: clamp(3.25rem, 5vw, 5.125rem);
+}
+
+.mascot--lg {
+  --mascot-size: clamp(5.5rem, 10vw, 9rem);
+}
+
+.mascot--arrive {
+  animation: mascot-arrive 360ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.mascot--waiting {
+  transform-origin: 50% 100%;
+  animation: mascot-waiting 2.4s ease-in-out infinite;
+}
+
+.mascot--success {
+  animation: mascot-success 420ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+@keyframes mascot-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.65rem) scale(0.88);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mascot-waiting {
+  0%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+
+  50% {
+    transform: rotate(1.5deg);
+  }
+}
+
+@keyframes mascot-success {
+  0% {
+    opacity: 0;
+    transform: translateY(0.45rem) scale(0.9);
+  }
+
+  60% {
+    transform: translateY(-0.2rem) scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot--arrive,
+  .mascot--waiting,
+  .mascot--success {
+    animation: none;
+  }
+}

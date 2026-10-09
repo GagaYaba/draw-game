@@ -1,0 +1,40 @@
+{
+  "name": "drawing-scale-game",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Technical foundation for an online multiplayer drawing game.",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "predev": "npm run build --workspace=@drawing-game/shared",
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build --workspace=@drawing-game/shared && npm run build --workspace=@drawing-game/server && npm run build --workspace=@drawing-game/client",
+    "start": "npm run start --workspace=@drawing-game/server",
+    "typecheck": "npm run typecheck --workspace=@drawing-game/shared && npm run typecheck --workspace=@drawing-game/server && npm run typecheck --workspace=@drawing-game/client && tsc --project tsconfig.json",
+    "format": "biome format --write client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/test client/test server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts e2e playwright.config.ts .github package.json tsconfig.base.json biome.json",
+    "format:check": "biome format client/src client/index.html client/package.json client/tsconfig.json client/vite.config.ts server/src server/test client/test server/package.json server/tsconfig.json shared/src shared/package.json shared/tsconfig.json scripts e2e playwright.config.ts .github package.json tsconfig.base.json biome.json",
+    "lint": "biome lint client/src server/src server/test client/test shared/src scripts e2e playwright.config.ts",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run build",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:unit": "npm run build --workspace=@drawing-game/shared && node --import tsx --import ./scripts/register-test-loaders.mjs --test server/test/*.test.ts client/test/*.test.ts client/test/*.test.tsx",
+    "test:coverage": "npm run build --workspace=@drawing-game/shared && c8 node --import tsx --import ./scripts/register-test-loaders.mjs --test server/test/*.test.ts client/test/*.test.ts client/test/*.test.tsx && node scripts/coverage-report.mjs",
+    "perf:budget": "node scripts/check-bundle-budget.mjs",
+    "perf:load": "node scripts/load-test.mjs"
+  },
+  "engines": {
+    "node": ">=22.12.0 <23.0.0",
+    "npm": ">=10.9.0 <11.0.0"
+  },
+  "packageManager": "npm@10.9.0",
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.56.1",
+    "c8": "11.0.0",
+    "typescript": "7.0.2"
+  }
+}

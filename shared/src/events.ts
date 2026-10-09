@@ -1,0 +1,17 @@
+export const SOCKET_EVENTS = {
+  CLIENT_PING: "client:ping",
+  SERVER_PONG: "server:pong",
+  ROOM_CREATE: "room:create",
+  ROOM_JOIN: "room:join",
+  SESSION_RESTORE: "session:restore",
+  ROOM_LEAVE: "room:leave",
+  ROOM_STATE: "room:state",
+  PLAYER_SET_READY: "player:set-ready",
+  GAME_START: "game:start",
+  GAME_CONTINUE: "game:continue",
+  GAME_REQUEST_REMATCH: "game:request-rematch",
+  DRAWING_SUBMIT: "drawing:submit",
+  GUESS_SUBMIT: "guess:submit",
+  TURN_SECRET: "turn:secret",
+  GAME_CANCELLED: "game:cancelled",
+} as const;
