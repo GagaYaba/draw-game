@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type {
@@ -240,7 +240,20 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
     const clientIndexPath = resolve(clientDistPath, "index.html");
 
     if (existsSync(clientIndexPath)) {
-      app.use(express.static(clientDistPath));
+      // La compression est assurée par le frontal de Render (Brotli). Les fichiers de /assets
+      // portent un hash dans leur nom : le navigateur peut les conserver un an sans revalidation.
+      app.use(
+        express.static(clientDistPath, {
+          setHeaders: (response, filePath) => {
+            const relativePath = relative(clientDistPath, filePath).split(sep).join("/");
+            if (relativePath.startsWith("assets/")) {
+              response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+            } else if (relativePath.startsWith("mascots/")) {
+              response.setHeader("Cache-Control", "public, max-age=86400");
+            }
+          },
+        }),
+      );
 
       app.use((request, response, next) => {
         const isApiRoute = request.path === "/api" || request.path.startsWith("/api/");
