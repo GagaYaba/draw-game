@@ -1,16 +1,22 @@
 # Blueprint Render du service de production (branche develop).
-# Il reprend les réglages du tableau de bord : un écart se corrige ici, par PR.
+# Fichier exporté depuis le service existant le 9 octobre 2026 : un écart avec le
+# tableau de bord se corrige ici, par PR. Les valeurs des variables ne sont pas
+# versionnées (sync: false) ; elles restent saisies dans Render.
+version: "1"
 services:
   - type: web
-    name: drawing-game
+    name: game
     runtime: node
-    plan: free
     repo: https://github.com/GagaYaba/draw-game
     branch: develop
+    plan: free
+    envVars:
+      - key: PLAYER_RECONNECT_GRACE_MS
+        sync: false
+      - key: NODE_ENV
+        sync: false
+    region: frankfurt
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    # Déploiement automatique seulement lorsque les contrôles CI du commit réussissent.
     autoDeployTrigger: checksPass
-    previews:
-      generation: "off"
