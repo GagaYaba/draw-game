@@ -339,3 +339,10 @@ Un premier passage du script de contre-vérification comptait mal les requêtes 
 - Le service est marqué **Blueprint managed**. Sa source (dépôt, fichier) n'est pas identifiée et le dépôt ne contient pas de `render.yaml`.
 
 **Conclusion** : le commit servi est identifié et les réglages sont conformes au protocole. L'auto-déploiement après CI n'est **pas encore prouvé** : il faudra un merge dans `develop` sans déclenchement manuel, suivi d'un déploiement dont le déclencheur n'est pas *Manual*. Le critère C2.1.1 (séquence de déploiement) reste partiel.
+
+## Blueprint Render — 9 octobre 2026
+
+- Constat : le service `drawing-game` est géré par un Blueprint rattaché à l'ancien dépôt `GagaYaba/drawing-game` (branche `main`), alors que le service construit `GagaYaba/draw-game`. Aucun déploiement automatique n'a été observé après la fusion des PR #10 et #11 : tous les déploiements ont le déclencheur *Manual*.
+- Décision du propriétaire : créer un Blueprint pour `draw-game`, puis supprimer celui de l'ancien dépôt.
+- Fichier ajouté : `render.yaml`, qui reprend les réglages consultés (build, démarrage, route de santé, plan Free, branche `develop`, déploiement après contrôles CI, aperçus de PR désactivés).
+- Non vérifié : la validité du fichier par Render, la reprise du service existant par le nouveau Blueprint (par opposition à la création d'un second service) et le déclenchement automatique. Ces points se contrôlent dans Render à la création du Blueprint, puis lors du prochain merge sans déploiement manuel.
