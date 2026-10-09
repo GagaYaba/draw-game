@@ -2,7 +2,7 @@
 
 SERVEUR EN LIGNE : https://drawing-scale-game.onrender.com/
 
-Drawing Game est un jeu multijoueur en temps réel. Trois à huit joueurs rejoignent un salon, se déclarent prêts, dessinent selon un niveau secret, estiment les dessins, découvrent les résultats et enchaînent deux manches avant le classement final et une éventuelle revanche.
+Drawing Game est un jeu multijoueur en temps réel. De deux à six joueurs rejoignent un salon, se déclarent prêts, dessinent tous en même temps selon un niveau secret qui leur est propre, estiment les dessins un par un, découvrent les résultats et enchaînent deux manches avant le classement final et une éventuelle revanche.
 
 Ce dépôt reprend sélectivement l’application du commit historique `6af6c0fb0f4f1abdb914a63018526d71ac1dbffc` de `GagaYaba/drawing-game`. Le code applicatif, les ressources visuelles et les configurations nécessaires ont été importés. Les anciens tests, scripts de recette, artefacts, documents et workflows de déploiement ne l’ont pas été.
 
@@ -50,7 +50,15 @@ npm run check
 npm audit
 ```
 
-Le typecheck couvre uniquement le code applicatif de `client`, `server` et `shared`. Les nouvelles suites unitaires et E2E seront ajoutées dans les lots prévus par [docs/bloc2.md](docs/bloc2.md), sans reprendre les anciens tests.
+Tests : `npm run test:unit` (unitaires et intégration serveur), `npm run test:coverage` (avec couverture) et `npm run test:e2e` (navigateur ; nécessite `npx playwright install chromium`). Le plan et les résultats sont dans [docs/recette.md](docs/recette.md).
+
+## Documentation
+
+- [Manuel de déploiement](docs/deploiement.md), [déploiement progressif et retour arrière](docs/deploiement-progressif.md), [manuel de mise à jour](docs/mise-a-jour.md) ;
+- [Manuel d'utilisation](docs/utilisation.md) ;
+- [Décisions structurantes](docs/decisions.md) ;
+- [Recette](docs/recette.md), [sécurité](docs/securite.md), [accessibilité](docs/accessibilite.md), [performance](docs/performance.md), [validation par des utilisateurs](docs/validation-utilisateurs.md) ;
+- [Cadrage et preuves BLOC 2](docs/bloc2.md).
 
 ## Architecture
 
@@ -70,7 +78,7 @@ L’amorçage exceptionnel du dépôt a créé `main` et `develop` sur le même 
 - les préfixes admis sont `feat/`, `fix/`, `chore/`, `docs/`, `test/` et `refactor/` ;
 - une PR de travail cible `develop` ;
 - une livraison stable passe uniquement par une PR `develop` vers `main` ;
-- les contrôles requis sont `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Quality` et `Branch policy` ;
+- les contrôles requis sont `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Unit tests`, `E2E`, `Quality` et `Branch policy` ;
 - la branche doit être à jour, les conversations résolues et les protections s’appliquent aussi aux administrateurs ;
 - aucune approbation d’un second contributeur n’est requise pour ce projet individuel.
 
