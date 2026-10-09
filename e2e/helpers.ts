@@ -120,3 +120,19 @@ export async function collectAccessibilityFindings(
       `${player.name} / ${screen} : ${violation.id} (${violation.impact}), ${violation.nodes.length} élément(s), ex. ${violation.nodes[0]?.target.join(" ")}`,
   );
 }
+
+/**
+ * Promesse résolue quand le client Socket.IO de la page a terminé sa montée en WebSocket.
+ * À appeler avant la navigation. Une page fermée pendant la phase d'interrogation HTTP n'est
+ * détectée par le serveur qu'au bout du délai de battement de cœur (jusqu'à 45 s), ce qui rend
+ * un scénario de coupure aléatoire : on attend donc la connexion définitive avant de couper.
+ */
+export function watchSocketUpgrade(page: Page): Promise<void> {
+  return new Promise((resolve) => {
+    page.on("websocket", (socket) => {
+      socket.on("framesent", (frame) => {
+        if (frame.payload === "5") resolve();
+      });
+    });
+  });
+}

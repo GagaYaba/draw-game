@@ -7,6 +7,7 @@ import type { RestoreSessionSuccessData } from "@drawing-game/shared";
 import {
   closeAll,
   connect,
+  createRoomAs,
   createReadyRoom,
   DRAWING,
   expectData,
@@ -281,6 +282,23 @@ describe("refus de saisies et de commandes", () => {
         "NOT_IN_ROOM",
       );
     }
+
+    // Dans un salon sans partie lancée, les commandes de jeu sont refusées sans effet.
+    const inLobby = await connectAs(server, "Alice");
+    await createRoomAs(inLobby);
+    for (const [event, payload] of [
+      ["drawing:submit", { drawing: DRAWING }],
+      ["guess:submit", { turnId: "x", value: 5 }],
+      ["game:continue", undefined],
+      ["game:request-rematch", undefined],
+    ] as const) {
+      const result =
+        payload === undefined
+          ? await request(inLobby, event)
+          : await request(inLobby, event, payload);
+      assert.equal(result.success, false, `${event} hors partie`);
+    }
+    assert.equal(inLobby.states.at(-1)?.game ?? null, null);
   });
 
   // Risque : une charge inattendue fait planter le processus ; l'état de tous les salons est en mémoire.

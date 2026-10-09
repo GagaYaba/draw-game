@@ -6,12 +6,14 @@ import type { DrawingDocument, PublicGameState } from "@drawing-game/shared";
 
 import { GameManager } from "../src/game/game-manager.js";
 import {
+  buildLeaderboard,
   calculateDrawerPoints,
   calculateGuessPoints,
   getNextStep,
 } from "../src/game/game-rules.js";
 import type { PlayerAssignment } from "../src/game/game-types.js";
 import { RoomManager, RoomManagerError } from "../src/rooms/room-manager.js";
+import type { InternalPlayer } from "../src/rooms/room-types.js";
 
 const DRAWING: DrawingDocument = {
   version: 2,
@@ -65,6 +67,22 @@ describe("règles du jeu", () => {
     assert.equal(step(0, 1), "NEXT_DRAWING");
     assert.equal(step(2, 1), "NEXT_ROUND");
     assert.equal(step(2, 2), "FINAL");
+
+    // Égalité : les ex æquo partagent le rang, le suivant saute les places occupées.
+    const player = (id: string, score: number) => ({ id, nickname: id, score }) as InternalPlayer;
+    const ranking = buildLeaderboard(
+      [player("a", 4), player("b", 9), player("c", 9), player("d", 1)],
+      ["a", "b", "c", "d"],
+    );
+    assert.deepEqual(
+      ranking.map((entry) => [entry.player.id, entry.rank]),
+      [
+        ["b", 1],
+        ["c", 1],
+        ["a", 3],
+        ["d", 4],
+      ],
+    );
   });
 });
 
@@ -77,7 +95,16 @@ function expectError(action: () => unknown, code: string) {
 
 describe("partie à dessin simultané", () => {
   // Risque : le serveur est autoritaire ; une fuite de secret ou un enchaînement faux casse l'équité.
+  // 3 joueurs : cas courant ; 6 joueurs : maximum, cinq votants par dessin.
   it("joue deux manches : dessins simultanés, votes un par un, scores et fin", () => {
+    for (const playerCount of [3, 6]) {
+      playTwoRounds(playerCount);
+    }
+  });
+});
+
+function playTwoRounds(playerCount: number) {
+  {
     const timers: (() => void)[] = [];
     const rooms = new RoomManager();
     const games = new GameManager(rooms, {
@@ -85,10 +112,13 @@ describe("partie à dessin simultané", () => {
       scheduleTimer: (callback) => timers.push(callback),
       clearTimer: () => undefined,
     });
-    const sockets = ["s0", "s1", "s2"];
-    const code = rooms.createRoom("s0", "Alice", randomUUID()).session.roomCode;
-    rooms.joinRoom("s1", "Bob", code, randomUUID());
-    rooms.joinRoom("s2", "Chloe", code, randomUUID());
+    // Le seul votant exact rapporte 2 points ; l'auteur reçoit la moyenne arrondie.
+    const authorPoints = Math.round(2 / (playerCount - 1));
+    const sockets = Array.from({ length: playerCount }, (_, index) => `s${index}`);
+    const code = rooms.createRoom("s0", "Joueur0", randomUUID()).session.roomCode;
+    for (const socketId of sockets.slice(1)) {
+      rooms.joinRoom(socketId, `Joueur${socketId.slice(1)}`, code, randomUUID());
+    }
     for (const socketId of sockets) {
       rooms.setPlayerReady(socketId, true);
     }
@@ -105,8 +135,8 @@ describe("partie à dessin simultané", () => {
 
     const playRound = (round: number, roundStart: { assignments?: PlayerAssignment[] }) => {
       const assignments = roundStart.assignments ?? [];
-      assert.equal(assignments.length, 3);
-      assert.equal(new Set(assignments.map((entry) => entry.secret.prompt.id)).size, 3);
+      assert.equal(assignments.length, playerCount);
+      assert.equal(new Set(assignments.map((entry) => entry.secret.prompt.id)).size, playerCount);
       assert.ok(assignments.every((entry) => entry.secret.round === round));
       assert.equal(JSON.stringify(publicGame()).includes("secretLevel"), false);
       assert.equal(publicGame().currentDrawer, null);
@@ -119,13 +149,14 @@ describe("partie à dessin simultané", () => {
         () => games.submitDrawing("s1", { drawing: DRAWING }),
         "DRAWING_ALREADY_SUBMITTED",
       );
-      games.submitDrawing("s2", { drawing: DRAWING });
-      assert.equal(publicGame().phase, "DRAWING");
-      games.submitDrawing("s0", { drawing: DRAWING });
+      for (const socketId of sockets.filter((id) => id !== "s1")) {
+        assert.equal(publicGame().phase, "DRAWING");
+        games.submitDrawing(socketId, { drawing: DRAWING });
+      }
       assert.equal(publicGame().phase, "VOTING");
 
       const authors: string[] = [];
-      for (let index = 0; index < 3; index += 1) {
+      for (let index = 0; index < playerCount; index += 1) {
         const game = publicGame();
         assert.ok(game.currentDrawer);
         const authorId = game.currentDrawer.id;
@@ -135,24 +166,27 @@ describe("partie à dessin simultané", () => {
           "DRAWER_CANNOT_GUESS",
         );
 
-        // Premier votant : exact (2 points) ; second votant : écart de 2 (0 point).
+        // Premier votant : exact (2 points) ; les autres : écart de 2 (0 point).
         const voters = sockets.filter((socketId) => socketId !== socketOf(authorId));
         games.submitGuess(voters[0] as string, { turnId: game.turnId, value: SECRET_LEVEL });
-        games.submitGuess(voters[1] as string, { turnId: game.turnId, value: SECRET_LEVEL + 2 });
+        for (const voter of voters.slice(1)) {
+          games.submitGuess(voter, { turnId: game.turnId, value: SECRET_LEVEL + 2 });
+        }
 
         const revealed = publicGame();
         assert.equal(revealed.phase, "REVEAL");
         assert.equal(revealed.reveal?.secretLevel, SECRET_LEVEL);
-        assert.equal(revealed.reveal?.drawerResult.pointsEarned, 1);
-        const expectedStep = index < 2 ? "NEXT_DRAWING" : round === 1 ? "NEXT_ROUND" : "FINAL";
+        assert.equal(revealed.reveal?.drawerResult.pointsEarned, authorPoints);
+        const expectedStep =
+          index < playerCount - 1 ? "NEXT_DRAWING" : round === 1 ? "NEXT_ROUND" : "FINAL";
         assert.equal(revealed.reveal?.nextStep, expectedStep);
 
-        if (index < 2) {
+        if (index < playerCount - 1) {
           games.continueGame("s0");
         }
       }
 
-      assert.equal(new Set(authors).size, 3, "chaque dessin est présenté une fois");
+      assert.equal(new Set(authors).size, playerCount, "chaque dessin est présenté une fois");
     };
 
     playRound(1, games.startGame("s0"));
@@ -163,11 +197,11 @@ describe("partie à dessin simultané", () => {
     games.continueGame("s0");
     assert.equal(publicGame().phase, "FINISHED");
 
-    // Six dessins : 2 points (exact) + 0 (écart de 2) pour les votants + 1 pour l'auteur.
+    // Chaque dessin rapporte 2 points aux votants (un exact, les autres à 0) et ceux de l'auteur.
     const scores = rooms.getPublicRoomState(code).players.map((player) => player.score);
     assert.equal(
       scores.reduce((total, score) => total + score, 0),
-      18,
+      2 * playerCount * (2 + authorPoints),
     );
-  });
-});
+  }
+}
