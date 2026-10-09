@@ -24,7 +24,7 @@ import {
   IDLE_ROOM_TTL_MS,
 } from "./security/limits.js";
 import { TokenBucketLimiter } from "./security/rate-limiter.js";
-import { SocketGuard } from "./security/socket-guard.js";
+import { SocketGuard, type SocketGuardOptions } from "./security/socket-guard.js";
 import { registerSocketHandlers } from "./socket/register-socket-handlers.js";
 import { isSocketOriginAllowed } from "./socket/socket-origin-policy.js";
 
@@ -36,6 +36,9 @@ export interface CreateDrawingGameServerOptions {
   reconnectManagerOptions?: ReconnectManagerOptions;
   allowedSocketOrigins?: readonly string[];
   allowLoopbackSocketOrigins?: boolean;
+  /** Remplace les quotas de production (utile pour les tests). */
+  socketGuardOptions?: SocketGuardOptions;
+  apiRequestsPerMinute?: number;
 }
 
 // A canonical 30,000-point drawing can exceed Engine.IO's 1 MB default once
@@ -58,10 +61,11 @@ export const CONTENT_SECURITY_POLICY = [
 export function createDrawingGameServer(options: CreateDrawingGameServerOptions = {}) {
   const app = express();
   const httpServer = createServer(app);
-  const guard = new SocketGuard();
+  const guard = new SocketGuard(options.socketGuardOptions);
+  const apiRequestsPerMinute = options.apiRequestsPerMinute ?? API_REQUESTS_PER_MINUTE;
   const apiLimiter = new TokenBucketLimiter({
-    capacity: API_REQUESTS_PER_MINUTE,
-    refillIntervalMs: 60_000 / API_REQUESTS_PER_MINUTE,
+    capacity: apiRequestsPerMinute,
+    refillIntervalMs: 60_000 / apiRequestsPerMinute,
   });
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     maxHttpBufferSize: MAX_SOCKET_MESSAGE_BYTES,

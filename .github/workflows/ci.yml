@@ -181,8 +181,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
 
   # Parcours navigateur complet. Contrôle requis par les protections de branche, hors synthèse Quality.
   e2e:
