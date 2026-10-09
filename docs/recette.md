@@ -151,6 +151,9 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | RC34 | B6 | Audit des dépendances, formatage, lint, typage, build. | 0 vulnérabilité haute ; tous les contrôles verts. | Structurel | CI : `Dependency audit`, `Formatting`, `Lint`, `Typecheck`, `Build` | Réussi en CI |
 | RC35 | B7 | Déploiement : santé après déploiement, déclenchement automatique, retour arrière. | `/api/health` répond 200 ; déploiement sans clic manuel ; retour arrière exécuté. | Déploiement | Manuel (7) | Non exécuté |
 
+| RC43 | US23 | Charges inattendues (null, nombres, texte de 10 000 caractères, tableaux, objets imbriqués) sur chacun des dix événements. | Chaque événement est refusé sans plantage ; le serveur répond ensuite à la santé et accepte une création de salon. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
+| RC44 | US24 | Origine refusée, flood HTTP et d'événements, échecs et blocage d'accès, salons et connexions limités. | Chaque événement est journalisé une fois, avec une adresse IP masquée ; HSTS annoncé pour les requêtes HTTPS. | Sécurité | Intégration `quotas.test.ts` | Réussi (local) ; CI à confirmer |
+
 ### Appareils et accessibilité
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
@@ -163,7 +166,7 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 
 ## 5. Tests automatisés et risques couverts
 
-La suite compte **30 tests unitaires et d'intégration** et **4 tests E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
+La suite compte **31 tests unitaires et d'intégration** et **4 tests E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
 
 | Fichier | Test | Risque couvert |
 | --- | --- | --- |
@@ -180,11 +183,12 @@ La suite compte **30 tests unitaires et d'intégration** et **4 tests E2E**. Cha
 | `server/test/shutdown.test.ts` | Arrêt gracieux (2 tests) | Déploiement qui laisse des connexions ou des minuteurs actifs. |
 | `server/test/quotas.test.ts` | En-têtes et origines (réseau réel) | Navigateur insuffisamment protégé. |
 | | Quotas HTTP et événements | Flood épuisant le processeur de l'instance unique. |
-| | Échecs de jonction, salons, connexions par IP | Énumération, création massive de salons. |
+| | Échecs de jonction, salons, connexions par IP (et journal de sécurité) | Énumération, création massive de salons, abus non détectés. |
 | `server/test/server.test.ts` | Partie complète sur serveur réel | Contrat réseau : autorisations, phases, secrets de bout en bout. |
 | | Restauration, expiration, mauvais identifiants | Coupure réseau : place perdue, partie bloquée, usurpation. |
 | | Départ et transfert d'hôte | Partie bloquée après un départ. |
 | | Saisies et commandes hors contexte | Une commande invalide modifie l'état du jeu. |
+| | Charges inattendues sur chaque événement | Plantage du processus : l'état de tous les salons est en mémoire. |
 | | Salon plein, pseudonyme pris, partie commencée | Règles d'admission contournées. |
 | `client/test/storage.test.ts` | Stockage local | Stockage corrompu ou indisponible qui empêche de jouer ou restaure à tort. |
 | | Contexte des brouillons, identifiant d'instance | Brouillon ou identifiant d'un autre tour, d'une autre partie ou d'un autre onglet. |
@@ -211,11 +215,11 @@ Commande : `npm run test:coverage` (tests unitaires, d'intégration serveur et d
 
 | Périmètre | Lignes couvertes | Couverture |
 | --- | --- | --- |
-| Serveur (`server/src`) | 4 324 / 5 154 | 83,9 % |
+| Serveur (`server/src`) | 4 457 / 5 251 | 84,9 % |
 | Partagé (`shared/src`) | 155 / 155 | 100,0 % |
 | Client, composants React | 3 706 / 4 631 | 80,0 % |
-| Client, hors composants (dont le hook `useRoomSession`) | 1 157 / 2 641 | 43,8 % |
-| **Total** | **9 342 / 12 581** | **74,3 %** |
+| Client, hors composants (dont le hook `useRoomSession`) | 1 164 / 2 650 | 43,9 % |
+| **Total** | **9 482 / 12 687** | **74,7 %** |
 
 Mesure locale sous Node 22.12.0 ; la CI exécute la même commande et échoue sous 70 % de lignes (seuil interne de non-régression, absent du référentiel).
 

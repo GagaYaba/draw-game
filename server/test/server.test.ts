@@ -283,6 +283,47 @@ describe("refus de saisies et de commandes", () => {
     }
   });
 
+  // Risque : une charge inattendue fait planter le processus ; l'état de tous les salons est en mémoire.
+  it("survit à des charges inattendues sur chaque événement et reste utilisable", async () => {
+    const server = await newServer();
+    const client = await connectAs(server, "Fuzz");
+    const payloads: unknown[] = [null, 0, true, "x".repeat(10_000), [], [[]], {}, { a: { b: {} } }];
+
+    for (const event of [
+      "room:create",
+      "room:join",
+      "session:restore",
+      "room:leave",
+      "player:set-ready",
+      "game:start",
+      "game:continue",
+      "game:request-rematch",
+      "drawing:submit",
+      "guess:submit",
+    ]) {
+      for (const payload of payloads) {
+        client.socket.emit(event, payload);
+        const result = await request(client, event, payload);
+        assert.equal(
+          result.success,
+          false,
+          `${event} avec ${JSON.stringify(payload)?.slice(0, 20)}`,
+        );
+      }
+    }
+    client.socket.emit("client:ping", "pas un objet");
+
+    assert.equal((await fetch(`${server.url}/api/health`)).status, 200);
+    const healthy = await connectAs(server, "Sain");
+    const created = expectData(
+      await request<{ session: { roomCode: string } }>(healthy, "room:create", {
+        nickname: "Sain",
+        clientInstanceId: healthy.clientInstanceId,
+      }),
+    );
+    assert.equal(created.session.roomCode.length, 5);
+  });
+
   it("refuse un salon plein, un pseudonyme déjà pris et une partie déjà commencée", async () => {
     const server = await newServer();
     const names = ["Alice", "Bob", "Chloe", "Dan", "Eve", "Fay"];

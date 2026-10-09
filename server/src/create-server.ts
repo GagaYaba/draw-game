@@ -24,6 +24,11 @@ import {
   IDLE_ROOM_TTL_MS,
 } from "./security/limits.js";
 import { TokenBucketLimiter } from "./security/rate-limiter.js";
+import {
+  createConsoleSecurityReporter,
+  maskIp,
+  type SecurityEventReporter,
+} from "./security/security-log.js";
 import { SocketGuard, type SocketGuardOptions } from "./security/socket-guard.js";
 import { registerSocketHandlers } from "./socket/register-socket-handlers.js";
 import { isSocketOriginAllowed } from "./socket/socket-origin-policy.js";
@@ -39,6 +44,8 @@ export interface CreateDrawingGameServerOptions {
   /** Remplace les quotas de production (utile pour les tests). */
   socketGuardOptions?: SocketGuardOptions;
   apiRequestsPerMinute?: number;
+  /** Destinataire des événements de sécurité ; par défaut une ligne JSON par événement. */
+  securityReporter?: SecurityEventReporter;
 }
 
 // A canonical 30,000-point drawing can exceed Engine.IO's 1 MB default once
@@ -61,6 +68,7 @@ export const CONTENT_SECURITY_POLICY = [
 export function createDrawingGameServer(options: CreateDrawingGameServerOptions = {}) {
   const app = express();
   const httpServer = createServer(app);
+  const report = options.securityReporter ?? createConsoleSecurityReporter();
   const guard = new SocketGuard(options.socketGuardOptions);
   const apiRequestsPerMinute = options.apiRequestsPerMinute ?? API_REQUESTS_PER_MINUTE;
   const apiLimiter = new TokenBucketLimiter({
@@ -78,7 +86,16 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
         allowedOrigins: options.allowedSocketOrigins,
         allowLoopbackPortMismatch: options.allowLoopbackSocketOrigins,
       });
-      callback(null, originAllowed && guard.canAcceptConnection(clientIp));
+      const connectionAllowed = guard.canAcceptConnection(clientIp);
+      if (!originAllowed) {
+        report("origin_refused", {
+          ip: maskIp(clientIp),
+          origin: String(request.headers.origin ?? "").slice(0, 100),
+        });
+      } else if (!connectionAllowed) {
+        report("connection_limit", { ip: maskIp(clientIp) });
+      }
+      callback(null, originAllowed && connectionAllowed);
     },
   });
   const roomManager = options.roomManager ?? new RoomManager();
@@ -144,7 +161,11 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
   };
 
   app.disable("x-powered-by");
-  app.use((_request, response, next) => {
+  app.use((request, response, next) => {
+    // Render termine le TLS : HSTS n'est annoncé que pour les requêtes reçues en HTTPS.
+    if (request.headers["x-forwarded-proto"] === "https") {
+      response.set("Strict-Transport-Security", "max-age=15552000");
+    }
     response.set({
       "Content-Security-Policy": CONTENT_SECURITY_POLICY,
       "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
@@ -160,6 +181,9 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
       getClientIp(request.headers["x-forwarded-for"], request.socket.remoteAddress),
     );
     if (!decision.allowed) {
+      report("http_rate_limited", {
+        ip: maskIp(getClientIp(request.headers["x-forwarded-for"], request.socket.remoteAddress)),
+      });
       response.set("Retry-After", String(Math.ceil(decision.retryAfterMs / 1000)));
       response.status(429).json({ error: "Trop de requêtes. Réessayez dans un instant." });
       return;
@@ -187,6 +211,7 @@ export function createDrawingGameServer(options: CreateDrawingGameServerOptions 
     reconnectManager,
     sessionRestorationManager,
     guard,
+    report,
   );
 
   const maintenanceTimer = setInterval(() => {

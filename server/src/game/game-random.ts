@@ -1,6 +1,17 @@
+import { randomInt } from "node:crypto";
+
 import type { DrawingPrompt } from "./game-types.js";
 
 export type RandomSource = () => number;
+
+const SECURE_RANDOM_RESOLUTION = 2 ** 32;
+
+/**
+ * Source aléatoire cryptographique : les niveaux secrets et l'ordre des dessins ne doivent pas
+ * pouvoir être déduits des valeurs déjà révélées (Math.random est prévisible).
+ */
+export const secureRandom: RandomSource = () =>
+  randomInt(SECURE_RANDOM_RESOLUTION) / SECURE_RANDOM_RESOLUTION;
 
 function getRandomIndex(length: number, random: RandomSource): number {
   const value = random();
@@ -14,7 +25,7 @@ function getRandomIndex(length: number, random: RandomSource): number {
 
 export function shufflePlayerIds(
   playerIds: readonly string[],
-  random: RandomSource = Math.random,
+  random: RandomSource = secureRandom,
 ): string[] {
   const shuffled = [...playerIds];
 
@@ -30,7 +41,7 @@ export function shufflePlayerIds(
 
 export function selectDrawingPrompt(
   prompts: readonly DrawingPrompt[],
-  random: RandomSource = Math.random,
+  random: RandomSource = secureRandom,
 ): DrawingPrompt {
   if (prompts.length === 0) {
     throw new RangeError("La banque de consignes ne peut pas être vide.");
@@ -45,6 +56,6 @@ export function selectDrawingPrompt(
   return prompt;
 }
 
-export function generateSecretLevel(random: RandomSource = Math.random): number {
+export function generateSecretLevel(random: RandomSource = secureRandom): number {
   return getRandomIndex(10, random) + 1;
 }
