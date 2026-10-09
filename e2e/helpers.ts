@@ -1,4 +1,10 @@
-import { type Browser, type BrowserContext, expect, type Page } from "@playwright/test";
+import {
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  expect,
+  type Page,
+} from "@playwright/test";
 
 export interface Player {
   name: string;
@@ -6,11 +12,23 @@ export interface Player {
   page: Page;
 }
 
-export async function openPlayer(browser: Browser, name: string, baseURL: string): Promise<Player> {
+export interface OpenPlayerOptions {
+  /** Chemin d'entrée, par exemple un lien d'invitation `/?room=ABCDE`. */
+  path?: string;
+  /** Profil de navigateur (téléphone, tablette). */
+  context?: BrowserContextOptions;
+}
+
+export async function openPlayer(
+  browser: Browser,
+  name: string,
+  baseURL: string,
+  options: OpenPlayerOptions = {},
+): Promise<Player> {
   // Chaque joueur possède son propre contexte : stockage et socket indépendants.
-  const context = await browser.newContext({ baseURL });
+  const context = await browser.newContext({ ...options.context, baseURL });
   const page = await context.newPage();
-  await page.goto("/");
+  await page.goto(options.path ?? "/");
   await expect(page.getByRole("heading", { name: "Rejoignez la table de jeu" })).toBeVisible();
   return { name, context, page };
 }
@@ -31,8 +49,8 @@ export async function joinRoom(player: Player, code: string): Promise<void> {
   await expect(player.page.getByRole("heading", { name: "Votre lobby" })).toBeVisible();
 }
 
-/** Dessine un trait puis valide le dessin, une fois l'éditeur affiché. */
-export async function drawSimpleStroke(player: Player): Promise<void> {
+/** Dessine un trait sans le valider, une fois l'éditeur affiché. */
+export async function drawStroke(player: Player): Promise<void> {
   const canvas = player.page.locator("canvas[aria-label^='Zone de dessin']");
   await canvas.waitFor({ state: "visible" });
   const box = await canvas.boundingBox();
@@ -41,8 +59,21 @@ export async function drawSimpleStroke(player: Player): Promise<void> {
   await player.page.mouse.down();
   await player.page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.6, { steps: 8 });
   await player.page.mouse.up();
+}
+
+/** Dessine un trait puis valide le dessin. */
+export async function drawSimpleStroke(player: Player): Promise<void> {
+  await drawStroke(player);
   await player.page.getByRole("button", { name: "Valider le dessin" }).click();
   await player.page.getByRole("dialog").getByRole("button", { name: "Valider mon dessin" }).click();
+}
+
+/** La page ne doit pas défiler horizontalement (écrans étroits). */
+export async function expectNoHorizontalOverflow(player: Player): Promise<void> {
+  const overflow = await player.page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflow, `${player.name} : débordement horizontal`).toBeLessThanOrEqual(1);
 }
 
 /** Trouve le joueur dont le dessin est présenté : il ne vote pas. */

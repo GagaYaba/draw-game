@@ -19,7 +19,8 @@ export default defineConfig({
     command: "npm run build && npm start",
     url: `http://127.0.0.1:${PORT}/api/health`,
     reuseExistingServer: false,
-    env: { PORT: String(PORT), NODE_ENV: "production" },
+    // Délai de reconnexion réduit pour tester l'expiration sans attendre 60 secondes.
+    env: { PORT: String(PORT), NODE_ENV: "production", PLAYER_RECONNECT_GRACE_MS: "6000" },
     timeout: 180_000,
   },
 });

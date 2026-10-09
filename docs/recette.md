@@ -99,9 +99,9 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
 | RC01 | US01, US02, US04, US05, US06 | Un joueur crée un salon, deux autres le rejoignent par le code, tous se déclarent prêts, l'hôte lance. | Le code à 5 caractères s'affiche ; chaque joueur voit les deux autres ; la partie démarre. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
-| RC02 | US02 | Un joueur ouvre le lien d'invitation `?room=CODE`. | Le code est pré-rempli à l'accueil. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC02 | US02 | Un joueur ouvre le lien d'invitation `?room=CODE`. | Le code est pré-rempli à l'accueil. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi (local) ; CI à confirmer |
 | RC03 | US03 | Pseudonyme vide, trop court, trop long, avec caractère interdit, puis doublon en changeant la casse. | Refus avec un message explicite ; le doublon est refusé dans le salon. | Fonctionnel | Intégration `server.test.ts`, unitaire `validation.test.ts` | Réussi (local) ; CI à confirmer |
-| RC04 | US02, US27 | Code de salon inconnu ou mal formé. | Message d'erreur ; aucune entrée dans un salon. | Fonctionnel | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
+| RC04 | US02, US27 | Code de salon inconnu ou mal formé. | Message d'erreur ; aucune entrée dans un salon. | Fonctionnel | E2E `extra-paths.spec.ts` (interface), intégration `server.test.ts` (serveur) | Réussi (local) ; CI à confirmer |
 | RC05 | US01, US06 | Partie à deux joueurs, puis tentative de lancement à un seul joueur. | Le lancement est refusé à un joueur ; il est possible à deux joueurs prêts. | Fonctionnel | Unitaire `rooms.test.ts` (lancement) ; E2E à automatiser (3) | Partiel : unitaire réussi en CI |
 | RC06 | US01 | Salon plein : un septième joueur tente de rejoindre. | Refus « salon plein ». | Fonctionnel | Unitaire `rooms.test.ts` | Réussi en CI |
 | RC07 | US06, US23 | Un non-hôte tente de lancer ; lancement avant que tous soient prêts ; second lancement. | Refus avec un message ; l'état de la partie ne change pas. | Sécurité | Intégration `server.test.ts` (non-hôte) ; reste à automatiser (3) | Partiel : refus du non-hôte réussi (local) |
@@ -114,13 +114,13 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | RC09 | US08, US09, US10, US11, US13, US14, US15, US16 | Parcours complet à trois joueurs : deux manches, chacune avec trois dessins validés en même temps puis estimés un par un. | Chaque dessin est présenté une fois ; points et révélation après chaque dessin ; classement final après la seconde manche. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local, Node 22.12.0) ; CI à confirmer |
 | RC10 | US08, US09 | Chaque joueur reçoit sa propre consigne et son niveau secret ; l'état public ne contient aucun niveau avant la révélation. | Trois consignes distinctes par manche ; aucune fuite dans l'état public. | Sécurité | Unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
 | RC11 | US09 | Utiliser stylo, gomme, pot de peinture, couleurs, épaisseurs, annuler, tout effacer. | Chaque outil modifie le dessin comme attendu. | Fonctionnel | Manuel, puis E2E ciblé (3) | Non exécuté |
-| RC12 | US10 | Valider un dessin vide ; valider un dessin avec confirmation ; annuler la confirmation. | Le bouton de validation est inactif sans trait ; l'annulation conserve le dessin. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC12 | US10 | Valider un dessin vide ; valider un dessin avec confirmation ; annuler la confirmation. | Le bouton de validation est inactif sans trait ; l'annulation conserve le dessin. | Fonctionnel | E2E `extra-paths.spec.ts` (validation désactivée sans trait) ; annulation de la confirmation non automatisée | Partiel : validation désactivée sans trait réussie (local) |
 | RC13 | US10, US23 | Second envoi d'un dessin ; envoi hors phase ; dessin dépassant 250 traits. | Refus pour chaque cas. | Sécurité | Intégration `server.test.ts` (second envoi), unitaire `validation.test.ts` (limites) ; hors phase à automatiser | Partiel : second envoi et limites réussis (local) |
 | RC14 | US11, US12, US23 | L'auteur tente d'estimer son dessin ; doublon d'estimation ; valeur hors 1 à 10 ; estimation d'un dessin périmé ; estimation après révélation. | Refus pour chaque cas, sans changer l'état du jeu. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
 | RC15 | US13 | Barème : estimation exacte, écart de 1, écart de 2 ou plus ; points de l'auteur selon les points de ses votants. | Votant : 2, 1 ou 0 point ; auteur : moyenne arrondie des points de ses votants. | Structurel | Unitaire `game.test.ts` (barème paramétré) | Réussi (local) ; CI à confirmer |
 | RC16 | US16 | Égalité au classement final. | Tous les ex æquo sont annoncés vainqueurs. | Fonctionnel | À automatiser (2) | Non exécuté |
 | RC17 | US17 | L'hôte propose une revanche ; un non-hôte essaie. | Retour au lobby de tous, scores et états prêts remis à zéro ; refus pour le non-hôte. | Fonctionnel | E2E `main-game.spec.ts` (hôte), intégration `server.test.ts` (non-hôte) | Réussi (local) ; CI à confirmer |
-| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par dessin ; la partie se termine normalement. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC18 | US25 | Partie complète à deux joueurs. | Un seul votant par dessin ; la partie se termine normalement. | Fonctionnel | E2E `extra-paths.spec.ts` (téléphone) | Réussi (local) ; CI à confirmer |
 | RC19 | US25 | Partie à six joueurs. | Six joueurs dessinent en même temps sur deux manches. | Fonctionnel | À automatiser (3) | Non exécuté |
 | RC41 | US10 | Un joueur valide son dessin avant les autres. | Il voit « En attente des autres joueurs » et la liste de ceux qui dessinent encore ; les votes ne démarrent qu'après la dernière validation. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
 | RC42 | US14, US15 | Enchaînement des dessins : dessin suivant, manche suivante, classement final. | Les libellés et la suite correspondent à l'étape ; un non-hôte ne peut pas continuer. | Fonctionnel | E2E `main-game.spec.ts` ; unitaire `game.test.ts` | Réussi (local) ; CI à confirmer |
@@ -130,10 +130,10 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
 | RC20 | US18 | Un votant actualise sa page pendant son estimation. | Il retrouve son salon et son formulaire d'estimation, et peut voter. | Fonctionnel | E2E `main-game.spec.ts` | Réussi en CI |
-| RC21 | US18 | Le dessinateur actualise sa page en cours de dessin. | Le dessin en cours et le niveau secret sont restaurés. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC21 | US18 | Le dessinateur actualise sa page en cours de dessin. | Le dessin en cours et le niveau secret sont restaurés. | Fonctionnel | E2E `extra-paths.spec.ts` | Réussi (local) ; CI à confirmer |
 | RC22 | US18, US23 | Restauration avec un jeton invalide, un joueur inconnu, une instance cliente différente. | Refus ; aucune restauration. | Sécurité | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
-| RC23 | US19 | Un joueur est coupé, puis revient avant 60 secondes. | Indicateur de déconnexion, puis reprise de sa place. | Fonctionnel | Intégration `server.test.ts` (serveur) ; indicateur d'interface à automatiser (3) | Partiel : reprise côté serveur réussie (local) |
-| RC24 | US20 | Un joueur reste déconnecté plus de 60 secondes pendant une partie. | Il est retiré ; la partie est annulée avec un message pour le groupe. | Fonctionnel | Intégration `server.test.ts` (serveur) ; message d'interface à automatiser (3) | Partiel : annulation côté serveur réussie (local) |
+| RC23 | US19 | Un joueur est coupé, puis revient avant 60 secondes. | Indicateur de déconnexion, puis reprise de sa place. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
+| RC24 | US20 | Un joueur reste déconnecté plus de 60 secondes pendant une partie. | Il est retiré ; la partie est annulée avec un message pour le groupe. | Fonctionnel | E2E `extra-paths.spec.ts`, intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
 | RC25 | US21 | Un joueur quitte en cours de partie ; l'hôte quitte. | La partie est annulée ; l'hôte passe au plus ancien joueur. | Fonctionnel | Intégration `server.test.ts` | Réussi (local) ; CI à confirmer |
 | RC26 | US22 | La même session est ouverte dans un second onglet. | Refus avec un message ; le premier onglet reste actif. | Sécurité | Intégration `server.test.ts` (serveur) ; message d'interface à automatiser (3) | Partiel : refus côté serveur réussi (local) |
 | RC27 | US27 | Le serveur est indisponible au chargement ou en cours de partie. | Message clair ; reprise automatique lorsque le serveur revient. | Fonctionnel | Manuel | Non exécuté |
@@ -155,7 +155,7 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 
 | ID | US | Scénario | Résultat attendu | Type | Moyen | Résultat |
 | --- | --- | --- | --- | --- | --- | --- |
-| RC36 | US25 | Parcours sur écran de téléphone et de tablette (émulation). | Interface utilisable, sans défilement horizontal, boutons accessibles. | Fonctionnel | À automatiser (3) | Non exécuté |
+| RC36 | US25 | Parcours sur écran de téléphone et de tablette (émulation). | Interface utilisable, sans défilement horizontal, boutons accessibles. | Fonctionnel | E2E `extra-paths.spec.ts` (profil Pixel 7 : parcours complet, aucun débordement horizontal) ; tablette non testée | Partiel : téléphone réussi (local) |
 | RC37 | US25 | Dessin et estimation au doigt sur un téléphone et une tablette réels. | Tracé continu, sans défilement parasite ; estimation validée. | Fonctionnel | Manuel (8) | Non exécuté |
 | RC38 | US26 | Navigation au clavier sur tous les écrans. | Ordre logique, focus visible, aucune impasse ; limites du canevas documentées. | Accessibilité | Manuel (5) | Non exécuté |
 | RC39 | US26 | Parcours avec un lecteur d'écran. | Noms et rôles annoncés ; changements de phase annoncés. | Accessibilité | Manuel (5) | Non exécuté |
@@ -163,7 +163,7 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 
 ## 5. Tests automatisés et risques couverts
 
-La suite compte **30 tests unitaires et d'intégration** et **1 test E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
+La suite compte **30 tests unitaires et d'intégration** et **4 tests E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
 
 | Fichier | Test | Risque couvert |
 | --- | --- | --- |
@@ -197,6 +197,9 @@ La suite compte **30 tests unitaires et d'intégration** et **1 test E2E**. Chaq
 | | Révélation | Idem, et bouton de suite inadapté. |
 | | Classement, connexion, application | Idem, et message de reconnexion absent. |
 | `e2e/main-game.spec.ts` | Partie complète à trois joueurs | Parcours réel dans un navigateur, restauration après actualisation, revanche, départ. |
+| `e2e/extra-paths.spec.ts` | Lien d'invitation et erreurs de saisie | Un joueur qui se trompe de pseudonyme ou de code reste bloqué sans comprendre. |
+| | Partie à deux joueurs sur téléphone | Jeu injouable sur petit écran ou au minimum de joueurs (débordement, écran hors de vue). |
+| | Actualisation, coupure, reprise et expiration | Perte du dessin en cours, groupe bloqué après une coupure. |
 
 Ces tests ne couvrent pas les gestionnaires d'événements ni les effets des composants (canevas, minuteries) : ils relèvent du test E2E.
 

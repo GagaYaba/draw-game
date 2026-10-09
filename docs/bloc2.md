@@ -43,9 +43,9 @@ Les étapes s'exécutent dans l'ordre. Chacune passe par une ou deux PR vers `de
 | ---: | --- | --- | --- | --- |
 | 0 | Socle : plan consigné, `Unit tests` et `E2E` obligatoires | 7 | Protections de branche, `AGENTS.md` | Terminé |
 | 1 | Besoins, user stories, squelette du cahier de recettes | 9, 10, 20, 21 | `docs/recette.md` | Terminé (user stories à valider) |
-| 1 bis | Évolution du gameplay : dessin simultané, un dessin révélé à la fois, barème 0 à 2 points | 9, 10, 20 | Règles serveur, écrans, E2E, `docs/recette.md` | En cours |
-| 2 | Tests unitaires et couverture | 13, 24 | Tests des règles, validations, sessions ; couverture mesurée en CI | À faire |
-| 3 | E2E complémentaires | 9, 11, 20, 24 | Refus, erreurs, expiration, bornes 2 et 6 joueurs, mobile et tablette | À faire |
+| 1 bis | Évolution du gameplay : dessin simultané, un dessin révélé à la fois, barème 0 à 2 points | 9, 10, 20 | Règles serveur, écrans, E2E, `docs/recette.md` | Terminé |
+| 2 | Tests unitaires et couverture | 13, 24 | 30 tests regroupés par risque ; couverture mesurée en CI (74,3 % des lignes en local) | Terminé |
+| 3 | E2E complémentaires | 9, 11, 20, 24 | 3 parcours : lien d'invitation et erreurs, partie à deux joueurs sur téléphone, coupure et expiration | Terminé (tablette et six joueurs non automatisés) |
 | 4 | Audit OWASP Top 10:2025 | 12, 14 | Analyse par catégorie dans `docs/securite.md`, corrections | À faire |
 | 5 | Accessibilité RGAA 4.1 AA | 11, 15, 16 | `docs/accessibilite.md`, audit, corrections | À faire |
 | 6 | Performance | 1, 5 | `docs/performance.md`, mesures, seuils, contrôle en CI | À faire |
