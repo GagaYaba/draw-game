@@ -346,3 +346,75 @@ Un premier passage du script de contre-vérification comptait mal les requêtes 
 - Décision du propriétaire : créer un Blueprint pour `draw-game`, puis supprimer celui de l'ancien dépôt.
 - Fichier ajouté : `render.yaml`. Une première version écrite à la main a été remplacée par l'export généré par Render à partir du service existant : service nommé `game`, région `frankfurt`, plan Free, branche `develop`, build `npm ci --include=dev && npm run build`, démarrage `npm start`, route de santé `/api/health`, `autoDeployTrigger: checksPass`, variables `PLAYER_RECONNECT_GRACE_MS` et `NODE_ENV` sans valeur versionnée. L'export confirme la validité de ces champs pour Render.
 - Non vérifié : la validité du fichier par Render, la reprise du service existant par le nouveau Blueprint (par opposition à la création d'un second service) et le déclenchement automatique. Ces points se contrôlent dans Render à la création du Blueprint, puis lors du prochain merge sans déploiement manuel.
+
+## Lots du plan d'exécution BLOC 2 (étapes 0 à 11) — 9 octobre 2026
+
+Ces lots suivent le plan de `docs/bloc2.md`. Chaque ligne renvoie à la PR fusionnée dans `develop` et à son commit de fusion ; les contrôles requis (`Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Unit tests`, `E2E`, `Quality`, `Branch policy`) étaient tous verts à chaque fusion. La CI s'exécute sous Node 22.12.0 ; les essais locaux de ces lots ont tourné sous Node 24.14.0 (les résultats qui font foi sont ceux de la CI).
+
+### Lots exécutés
+
+| Étape | PR (commit de fusion) | Livrable | Résultat consigné |
+| --- | --- | --- | --- |
+| 0 | #14 (`1006a08`) | Plan consigné, `Unit tests` et `E2E` rendus obligatoires | Protections de branche appliquées sur `develop` et `main`. |
+| 1 | #15 (`29b179f`) | Besoins, 27 user stories, cahier de recettes (`docs/recette.md`) | User stories à valider par le porteur. |
+| 1 bis | #16 (`e3596f2`) | Dessin simultané, un dessin révélé à la fois, barème de 0 à 2 points | Règles serveur, écrans et E2E adaptés. |
+| 2 | #17 (`490b38f`) | 30 tests unitaires et d'intégration regroupés par risque | Couverture mesurée, seuil de 70 % en CI. |
+| 3 | #18 (`2f43ee7`) | 3 parcours E2E complémentaires | Lien d'invitation, partie à deux joueurs sur téléphone, coupure et expiration. |
+| 4 | #19 (`c2948a3`) | Audit OWASP Top 10:2025 (`docs/securite.md`) | Cinq corrections, test de robustesse, journal de sécurité. |
+| 5 | #20 (`fab4b4d`) | Audit RGAA 4.1 AA (`docs/accessibilite.md`) | 0 violation axe-core WCAG 2.1 A/AA sur tous les écrans à 320 px et sur ordinateur ; contrastes mesurés ; parcours clavier. |
+| 6 | #21 (`7981a05`) | Budgets, mesures et test de charge (`docs/performance.md`) | Lighthouse mobile 78 ; 20 salons de 6 joueurs sans échec. |
+| 7 | #22 (`7d44217`), #23 (`d3c0774`), #24 (`03f6fe9`) | Préproduction et production, `smoke-check.mjs`, promotion vers `main` | Contrôle réussi sur la préproduction (commit servi `7d44217`) ; production non contrôlée. |
+| 8 | #25 (`3dec409`) | Protocole de validation par des utilisateurs (`docs/validation-utilisateurs.md`) | Aucune session à ce jour. |
+| 9 | #26 (`aedb61f`) | Cahier de recettes exécuté (`docs/recette.md`, section 5 ter) | 37 scénarios sur 44 réussis, 5 partiels, 2 non exécutés. |
+| 10 | #27 (`158f402`) | Manuels et décisions (`docs/deploiement.md`, `utilisation.md`, `mise-a-jour.md`, `decisions.md`) | Relecture extérieure non faite. |
+| 11 | #28 (`4ba05f1`) | Bilan de la matrice (`docs/bloc2.md`) | 13 critères Disponible, 13 Partiel ; 15 et 11 après le report de ce registre (critères 22 et 23). |
+
+CI de référence : exécution [37941591446](https://github.com/GagaYaba/draw-game/actions/runs/37941591446) sur `develop` (`158f402`), réussie ; exécution [37933377922](https://github.com/GagaYaba/draw-game/actions/runs/37933377922) sur `main` (`03f6fe9`), réussie.
+
+### Résultats mesurés
+
+| Mesure | Résultat | Source |
+| --- | --- | --- |
+| Tests unitaires et d'intégration | 31 réussis, 0 échec | `npm run test:unit` en CI |
+| Tests E2E | 6 réussis (parcours à trois joueurs, trois parcours complémentaires, deux contrôles d'accessibilité) | `npm run test:e2e` en CI |
+| Couverture des lignes | 75,0 % (9 537 sur 12 719) : serveur 85,4 %, composants React 80,0 %, partagé 100 %, client hors composants 44,0 % | `npm run test:coverage` |
+| Accessibilité | 0 violation axe-core, contrastes conformes, aucun défilement horizontal à 320 px | `docs/accessibilite.md` |
+| Performance | Lighthouse mobile : performance 78, accessibilité 100, bonnes pratiques 100, LCP 2,6 s, CLS 0, TBT 740 ms | `docs/performance.md` |
+| Charge | 20 salons de 6 joueurs : 0 échec, accusé p95 de 205 à 262 ms ; 60 salons : p95 de 499 ms | `npm run perf:load` |
+| Mémoire du serveur | 62 Mo au repos, 186 Mo après 360 connexions cumulées | relevé local |
+| Cahier de recettes | 37 réussis, 5 partiels, 2 non exécutés sur 44 | `docs/recette.md` |
+| Premier chargement Render | 23 s après mise en veille ; 0,16 s ensuite | requêtes sur le service en ligne |
+
+### Registre des anomalies et échecs qualifiés
+
+| # | Constat | Catégorie | Gravité | Cause | Correction | Vérification | PR |
+| ---: | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `Unit tests` en échec en CI : module partagé introuvable | Défaut de CI | Modérée | Le script `test:unit` supposait `shared/dist` déjà construit, absent d'un clone neuf | `test:unit` construit `shared` d'abord | CI verte | #17 |
+| 2 | Le parcours E2E sur téléphone restait bloqué à la deuxième manche | Défaut reproduit | Modérée | La page restait défilée en bas après un changement d'écran : la zone de dessin était hors de vue | Retour en haut de page à chaque changement d'écran (`client/src/App.tsx`) | E2E téléphone | #18 |
+| 3 | La sixième salle créée par la suite E2E était refusée | Décision | Faible | Quota de 5 salons par adresse et par jour, appliqué à une suite qui en crée davantage depuis une seule adresse | Variable `MAX_ROOMS_PER_IP_PER_DAY` ; valeur de production inchangée (5) | E2E (relevée à 1000) | #20 |
+| 4 | Le bloc du joueur courant débordait de son cadre dans le classement à 320 px | Défaut reproduit | Faible | Marge intérieure insuffisante, révélée par la mesure de contraste | Correction de la feuille de style du podium | E2E d'accessibilité à 320 px | #20 |
+| 5 | Aucun titre de niveau 1 sur les écrans de partie | Amélioration (RGAA 9.1) | Faible | Seul l'accueil en portait un | Titre masqué visuellement ajouté | axe-core | #20 |
+| 6 | Violation de contraste sur le bouton de validation, uniquement en CI | Faux positif du test | Faible | Mesure pendant la transition de couleur qui suit l'activation du bouton, sur un exécuteur plus lent | Attente de la fin des transitions avant la mesure | E2E d'accessibilité en CI | #20 |
+| 7 | Le test d'accessibilité dépassait 120 s en CI | Défaut de test | Faible | Attente des transitions sans limite de durée | Attente bornée à 2 s, limite du test portée à 300 s | E2E d'accessibilité en CI | #20 |
+| 8 | Alerte `npm audit` sur le paquet `compression` ajouté | Risque évité | Haute | Version 1.8.1 vulnérable à un déni de service | Dépendance retirée : Render compresse déjà en Brotli | `Dependency audit` à 0 vulnérabilité | #21 |
+| 9 | Service `game-prod` en échec au premier déploiement | Attendu | Sans objet | `main` ne contenait que le commit d'amorçage | Promotion `develop` vers `main` | Déploiement réussi | #24 |
+| 10 | `render.yaml` nommait `game` un service nommé `game-preprod` dans Render | Écart de configuration | Faible | Service renommé dans le tableau de bord | Fichier aligné sur les noms réels | Relecture du tableau de bord | #23 |
+| 11 | Test de reconnexion instable (environ 1 échec sur 9 en local, 1 en CI) | Test instable | Modérée pour la CI | Page fermée pendant la phase d'interrogation HTTP de Socket.IO : le serveur ne détecte la coupure qu'au bout du délai de battement de cœur (jusqu'à 45 s) | Attente de la montée en WebSocket avant chaque coupure (`watchSocketUpgrade`) | 18 exécutions consécutives réussies, puis CI verte | #26 |
+
+Les cinq corrections issues de l'audit OWASP (étape 4) et leurs contre-tests sont décrites dans `docs/securite.md`.
+
+### Points non corrigés, par décision
+
+| Constat | Qualification | Décision |
+| --- | --- | --- |
+| Après un redémarrage du serveur, la partie est perdue ; l'écran de coupure annonce pourtant « Votre place est conservée » | Écart constaté pendant la recette (RC27) | L'état est en mémoire sur une instance unique : accepté pour l'instant, à rediscuter selon les retours des testeurs. |
+| Temps de blocage total de 740 ms au chargement sur le profil mobile simulé | Amélioration | Non traité ; pistes : découpage du JavaScript, images en WebP. |
+| Premier chargement de 23 s après mise en veille | Décision d'infrastructure | Plan payant, appel périodique ou acceptation : décision du porteur du projet. |
+| Le dessin à main levée n'est pas utilisable au clavier | Non-conformité déclarée (RGAA) | Documentée dans `docs/accessibilite.md`. |
+
+### Vérifications non exécutées
+
+- Déclenchement automatique du déploiement observé sans clic manuel (les déploiements consultés portaient le déclencheur manuel) et retour arrière sur Render.
+- Contrôle `smoke-check.mjs` sur le service de production (URL non communiquée).
+- Sessions de validation par des utilisateurs, lecteur d'écran, texte à 200 %, appareils tactiles réels.
+- Relecture extérieure des manuels et installation sur un poste vierge.

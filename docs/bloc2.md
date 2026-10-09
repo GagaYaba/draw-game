@@ -29,8 +29,8 @@ Statuts utilisés : **Disponible** quand une preuve existe et a été vérifiée
 | 19 | C2.2.4 | Le logiciel est fonctionnel et manipulable en autonomie par un utilisateur. | Clone autonome et recette publique complète à trois sessions, avec Socket.IO, restauration, revanche et départ. | Partiel | Exécuter le contrôle du commit servi (`docs/deploiement-progressif.md`) et obtenir une validation utilisateur indépendante (protocole et seuils dans `docs/validation-utilisateurs.md`, aucune session à ce jour). |
 | 20 | C2.3.1 | Le cahier de recettes reprend l’ensemble des fonctionnalités attendues. | Cahier de 44 scénarios dans `docs/recette.md`, avec résultats attendus, moyen de test et résultats consignés le 9 octobre 2026 (section 5 ter). | Disponible | Maintenir le cahier à chaque évolution de règle. |
 | 21 | C2.3.1 | Les tests fonctionnels, structurels et de sécurité exécutés sont conformes au plan défini. | Plan défini dans `docs/recette.md` ; cahier exécuté le 9 octobre 2026 : 37 scénarios sur 44 réussis (CI Node 22.12.0 ou essai manuel), 5 partiels, 2 non exécutés. | Partiel | Exécuter RC37 et RC39 (appareils réels, lecteur d’écran) et lever les cinq partiels. |
-| 22 | C2.3.2 | Les bogues de codes sont détectés, qualifiés et traités. | Registre de `docs/validation.md` (défauts reproduits, risques, améliorations, décisions, avec gravité, cause, correction, statut) à jour jusqu’à la PR #5 ; depuis, défauts qualifiés dans les messages de commit et les PR (podium à 320 px, test instable de reconnexion, faux contraste). | Partiel | Reporter dans `docs/validation.md` les constats des étapes 1 à 10 (en attente de votre accord) ; ajouter les retours des testeurs. |
-| 23 | C2.3.2 | Une analyse des points d’amélioration est réalisée pour chaque test en échec. | Analyses menées sur les échecs de CI de ce plan (module partagé absent, quota de salons, contraste mesuré pendant une transition, attente non bornée, coupure pendant la montée en WebSocket), avec cause, correction et vérification, consignées dans les commits et PR. | Partiel | Les consigner dans le registre de `docs/validation.md`. |
+| 22 | C2.3.2 | Les bogues de codes sont détectés, qualifiés et traités. | Registre de `docs/validation.md` mis à jour le 9 octobre 2026 : 11 constats des étapes 0 à 11 avec catégorie, gravité, cause, correction, vérification et PR, plus les points non corrigés par décision. | Disponible | Ajouter les retours des testeurs (`docs/validation-utilisateurs.md`) et les futurs échecs. |
+| 23 | C2.3.2 | Une analyse des points d’amélioration est réalisée pour chaque test en échec. | Chaque échec de CI de ce plan est analysé dans le registre de `docs/validation.md` (causes : script de test, mesure pendant une transition, attente non bornée, coupure pendant la montée en WebSocket), avec correction et vérification ; trois constats distinguent faux positif de test et défaut applicatif. | Disponible | Appliquer la même analyse à chaque futur échec. |
 | 24 | C2.3.2 | Les corrections et les améliorations proposées sont conformes à l’attendu et garantissent le bon fonctionnement du logiciel. | Chaque correction est reliée à un contre-test ou à une vérification : contrôle de contraste validé par mutation, classement des ex æquo validé par mutation, test de reconnexion répété 18 fois sans échec, CI verte sur chaque PR. | Partiel | Confirmer par la validation utilisateur et les essais sur appareils réels. |
 | 25 | C2.4.1 | Les manuels sont rédigés avec clarté. | `docs/deploiement.md`, `docs/utilisation.md`, `docs/mise-a-jour.md` et `docs/deploiement-progressif.md` rédigés le 9 octobre 2026 ; README mis à jour. | Partiel | Faire relire les manuels par une personne extérieure et suivre pas à pas `docs/deploiement.md` sur un poste vierge. |
 | 26 | C2.4.1 | La documentation permet de décrire les choix opérés en termes de technologies, de langages etc. | `docs/decisions.md` : technologies, règles de jeu, sécurité, qualité et exploitation, avec alternatives et raisons ; décisions ouvertes listées. | Disponible | Ajouter une ligne à chaque décision structurante. |
@@ -39,8 +39,8 @@ Statuts utilisés : **Disponible** quand une preuve existe et a été vérifiée
 
 | Statut | Nombre | Critères |
 | --- | ---: | --- |
-| Disponible | 13 | 3, 5, 6, 7, 8, 12, 13, 14, 15, 17, 18, 20, 26 |
-| Partiel | 13 | 1, 2, 4, 9, 10, 11, 16, 19, 21, 22, 23, 24, 25 |
+| Disponible | 15 | 3, 5, 6, 7, 8, 12, 13, 14, 15, 17, 18, 20, 22, 23, 26 |
+| Partiel | 11 | 1, 2, 4, 9, 10, 11, 16, 19, 21, 24, 25 |
 | À produire | 0 | |
 
 Un statut « Disponible » signifie qu'une preuve a été exécutée et vérifiée dans ce dépôt ; il ne vaut pas validation du jury. Tous les critères « Partiel » attendent une action qui ne peut pas être réalisée par le code seul :
@@ -52,7 +52,6 @@ Un statut « Disponible » signifie qu'une preuve a été exécutée et vérifi�
 | Valider les 27 user stories | 10 | Porteur du projet |
 | Essais avec lecteur d'écran, texte à 200 %, téléphone et tablette réels (RC36, RC37, RC39, RC40) | 11, 16, 21 | Porteur du projet |
 | Faire relire les manuels et suivre `docs/deploiement.md` sur un poste vierge | 2, 25 | Une personne extérieure |
-| Reporter les constats des étapes 1 à 10 dans `docs/validation.md` | 22, 23 | Sur accord du porteur |
 | Vérifier la version officielle du RGAA avant de publier la déclaration d'accessibilité et en renseigner le contact | 15, 16 | Porteur du projet |
 
 ## Plan d'exécution
