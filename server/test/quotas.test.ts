@@ -49,6 +49,11 @@ describe("exposition HTTP et WebSocket", () => {
 
     assert.equal(health.status, 200);
     assert.deepEqual(await health.json(), { status: "ok", service: "drawing-game-server" });
+    const versioned = await newServer({ commit: "abc1234" });
+    assert.equal(
+      ((await (await fetch(`${versioned.url}/api/health`)).json()) as { commit?: string }).commit,
+      "abc1234",
+    );
     assert.equal(health.headers.get("x-powered-by"), null);
     assert.equal(health.headers.get("strict-transport-security"), null, "pas de HSTS en HTTP");
     const secure = await fetch(`${server.url}/api/health`, {

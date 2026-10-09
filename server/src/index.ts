@@ -31,7 +31,15 @@ const allowedSocketOrigins = (process.env.SOCKET_ALLOWED_ORIGINS ?? "")
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
 
+// Render fournit le commit déployé ; il est exposé par /api/health pour prouver la version servie.
+const renderCommit = process.env.RENDER_GIT_COMMIT;
+const commit =
+  renderCommit !== undefined && /^[0-9a-f]{7,40}$/u.test(renderCommit)
+    ? renderCommit.slice(0, 7)
+    : undefined;
+
 const { dispose, httpServer, io } = createDrawingGameServer({
+  commit,
   reconnectGraceMs,
   socketGuardOptions: { roomsPerIpPerDay },
   allowedSocketOrigins,

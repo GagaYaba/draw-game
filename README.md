@@ -90,4 +90,6 @@ Configuration attendue pour le monorepo :
 - `PORT` fourni par Render, `NODE_ENV=production` et `PLAYER_RECONNECT_GRACE_MS` facultatif ;
 - déploiement automatique unique : Render, réglé sur **After CI Checks Pass**. Aucun second workflow GitHub ne déclenche le même déploiement.
 
+Deux environnements sont décrits dans `render.yaml` et `docs/deploiement-progressif.md` : le service `game` (préproduction, branche `develop`) et `game-prod` (production, branche `main`). Après un déploiement, `node scripts/smoke-check.mjs <url> <commit>` contrôle la santé, la version servie et Socket.IO.
+
 Après chaque fusion dans `develop`, la CI doit réussir sur le commit de fusion avant que Render ne le déploie. La vérification post-déploiement couvre la santé HTTP, Socket.IO et une partie navigateur complète. Pour revenir en arrière, utiliser l’historique **Deploys** du service afin de redéployer la dernière version réussie, puis vérifier `/api/health` et Socket.IO. Render désactive le déploiement automatique après un rollback ; le réactiver sur **After CI Checks Pass** une fois l’incident traité.
