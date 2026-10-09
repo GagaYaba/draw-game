@@ -1,12 +1,12 @@
 # Blueprint Render : préproduction (branche develop) et production (branche main).
-# Le service `game` existe déjà (exporté le 9 octobre 2026) et devient la préproduction ; son nom
-# et son URL ne changent pas. `game-prod` est la production, liée à `main`. Un écart avec le
+# `game-preprod` est la préproduction (branche `develop`) et `game-prod` la production (branche
+# `main`) : les noms sont ceux du tableau de bord Render. Un écart avec le
 # tableau de bord se corrige ici, par PR. Les valeurs des variables ne sont pas versionnées
 # (sync: false) ; elles restent saisies dans Render.
 version: "1"
 services:
   - type: web
-    name: game
+    name: game-preprod
     runtime: node
     repo: https://github.com/GagaYaba/draw-game
     branch: develop

@@ -6,7 +6,7 @@ Ce document décrit les deux environnements, la séquence de promotion, le contr
 
 | | Préproduction | Production |
 | --- | --- | --- |
-| Service Render | `game` (existant) | `game-prod` (à créer par le Blueprint) |
+| Service Render | `game-preprod` | `game-prod` |
 | Branche | `develop` | `main` |
 | URL | https://drawing-scale-game.onrender.com/ | attribuée par Render à la création |
 | Rôle | Valider chaque fusion avec la recette avant promotion. | Version stable remise aux joueurs. |
@@ -58,7 +58,7 @@ Remarques : le retour arrière ne défait pas le code sur GitHub; il fige la ver
 
 1. Fusionner la PR qui apporte ce document et `render.yaml`.
 2. Promouvoir `develop` vers `main` (PR `develop` vers `main`) : `main` ne contient aujourd'hui que le commit d'amorçage, le build de production échouerait sans cela.
-3. Dans Render, synchroniser le Blueprint : `game-prod` est créé sur `main`. Saisir les variables `NODE_ENV=production` et `PLAYER_RECONNECT_GRACE_MS` (comme sur `game`).
+3. Dans Render, synchroniser le Blueprint : `game-prod` est créé sur `main` (premier déploiement en échec tant que `main` n'est pas promu, ce qui a été observé). Saisir les variables `NODE_ENV=production` et `PLAYER_RECONNECT_GRACE_MS` (comme sur `game`).
 4. Vérifier le réglage **After CI Checks Pass** sur `game-prod`.
 5. Lancer le contrôle après déploiement sur les deux URL et consigner les résultats ci-dessous.
 
