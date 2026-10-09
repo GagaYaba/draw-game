@@ -1,4 +1,3 @@
-import { TokenBucketLimiter, WindowQuota, type RateDecision } from "./rate-limiter.js";
 import {
   ACCESS_FAILURE_CODES,
   CONNECTIONS_PER_IP,
@@ -10,29 +9,54 @@ import {
   SOCKET_EVENT_BURST,
   SOCKET_EVENT_REFILL_INTERVAL_MS,
 } from "./limits.js";
+import { type Clock, type RateDecision, TokenBucketLimiter, WindowQuota } from "./rate-limiter.js";
+
+/** Valeurs de quotas ; les valeurs de production sont définies dans `limits.ts`. */
+export interface SocketGuardOptions {
+  eventBurst?: number;
+  eventRefillIntervalMs?: number;
+  connectionsPerIp?: number;
+  roomsPerIpPerDay?: number;
+  failedJoinsPerSocket?: number;
+  failedJoinsPerIp?: number;
+  clock?: Clock;
+}
 
 /** Applique les quotas d'admission et de débit aux connexions Socket.IO. */
 export class SocketGuard {
   private readonly connectionsByIp = new Map<string, number>();
-  private readonly eventLimiter = new TokenBucketLimiter({
-    capacity: SOCKET_EVENT_BURST,
-    refillIntervalMs: SOCKET_EVENT_REFILL_INTERVAL_MS,
-  });
-  private readonly roomCreations = new WindowQuota({
-    limit: ROOMS_CREATED_PER_IP_PER_DAY,
-    windowMs: ROOM_CREATION_WINDOW_MS,
-  });
-  private readonly failuresBySocket = new WindowQuota({
-    limit: FAILED_JOINS_PER_SOCKET,
-    windowMs: FAILED_JOIN_WINDOW_MS,
-  });
-  private readonly failuresByIp = new WindowQuota({
-    limit: FAILED_JOINS_PER_IP,
-    windowMs: FAILED_JOIN_WINDOW_MS,
-  });
+  private readonly connectionsPerIp: number;
+  private readonly eventLimiter: TokenBucketLimiter;
+  private readonly roomCreations: WindowQuota;
+  private readonly failuresBySocket: WindowQuota;
+  private readonly failuresByIp: WindowQuota;
+
+  constructor(options: SocketGuardOptions = {}) {
+    this.connectionsPerIp = options.connectionsPerIp ?? CONNECTIONS_PER_IP;
+    this.eventLimiter = new TokenBucketLimiter({
+      capacity: options.eventBurst ?? SOCKET_EVENT_BURST,
+      refillIntervalMs: options.eventRefillIntervalMs ?? SOCKET_EVENT_REFILL_INTERVAL_MS,
+      clock: options.clock,
+    });
+    this.roomCreations = new WindowQuota({
+      limit: options.roomsPerIpPerDay ?? ROOMS_CREATED_PER_IP_PER_DAY,
+      windowMs: ROOM_CREATION_WINDOW_MS,
+      clock: options.clock,
+    });
+    this.failuresBySocket = new WindowQuota({
+      limit: options.failedJoinsPerSocket ?? FAILED_JOINS_PER_SOCKET,
+      windowMs: FAILED_JOIN_WINDOW_MS,
+      clock: options.clock,
+    });
+    this.failuresByIp = new WindowQuota({
+      limit: options.failedJoinsPerIp ?? FAILED_JOINS_PER_IP,
+      windowMs: FAILED_JOIN_WINDOW_MS,
+      clock: options.clock,
+    });
+  }
 
   canAcceptConnection(ip: string): boolean {
-    return (this.connectionsByIp.get(ip) ?? 0) < CONNECTIONS_PER_IP;
+    return (this.connectionsByIp.get(ip) ?? 0) < this.connectionsPerIp;
   }
 
   registerConnection(ip: string): void {
