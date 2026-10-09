@@ -1,0 +1,16 @@
+# Blueprint Render du service de production (branche develop).
+# Il reprend les réglages du tableau de bord : un écart se corrige ici, par PR.
+services:
+  - type: web
+    name: drawing-game
+    runtime: node
+    plan: free
+    repo: https://github.com/GagaYaba/draw-game
+    branch: develop
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    # Déploiement automatique seulement lorsque les contrôles CI du commit réussissent.
+    autoDeployTrigger: checksPass
+    previews:
+      generation: "off"

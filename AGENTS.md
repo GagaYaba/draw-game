@@ -27,4 +27,4 @@
 - Ne pas committer directement sur `main` ou `develop`, ne pas forcer les pushes et ne pas contourner les protections.
 - Garder stables les contrôles requis `Formatting`, `Lint`, `Typecheck`, `Build`, `Dependency audit`, `Quality` et `Branch policy`.
 - La CI doit couvrir les PR et les pushes vers `develop` et `main`. `Quality` reste une synthèse stricte des contrôles applicatifs.
-- Tant que la promotion stable est différée, le service Render existant reste sur `develop` avec `After CI Checks Pass`. Ne pas ajouter un second déclencheur de déploiement.
+- Tant que la promotion stable est différée, le service Render existant reste sur `develop` avec `After CI Checks Pass`. Ne pas ajouter un second déclencheur de déploiement. La configuration du service est décrite dans `render.yaml` et doit y rester alignée avec le tableau de bord.
