@@ -330,3 +330,12 @@ Un premier passage du script de contre-vérification comptait mal les requêtes 
 - Une adresse IP partagée (salle de classe) peut atteindre le quota de connexions ou de salons.
 - Pas de mesure de la taille réelle maximale d'un dessin produit par un client.
 - Les tests unitaires ne couvrent pas encore la majorité du code : C2.2.2 reste partiel.
+
+## Constat Render après fusion de la PR #10 — 9 octobre 2026
+
+- Tableau de bord Render : service `drawing-game`, dépôt `GagaYaba/draw-game`, branche `develop`, commit servi `cae3504` (fusion de la PR #10), statut *Live*.
+- Réglages consultés : build `npm ci --include=dev && npm run build`, démarrage `npm start`, route de santé `/api/health`, *Auto-Deploy* sur *After CI Checks Pass*, *PR Previews* désactivé, pas de commande de pré-déploiement.
+- Le déploiement de `cae3504` a le déclencheur **Manual** ; le même constat vaut pour les déploiements précédents.
+- Le service est marqué **Blueprint managed**. Sa source (dépôt, fichier) n'est pas identifiée et le dépôt ne contient pas de `render.yaml`.
+
+**Conclusion** : le commit servi est identifié et les réglages sont conformes au protocole. L'auto-déploiement après CI n'est **pas encore prouvé** : il faudra un merge dans `develop` sans déclenchement manuel, suivi d'un déploiement dont le déclencheur n'est pas *Manual*. Le critère C2.1.1 (séquence de déploiement) reste partiel.
