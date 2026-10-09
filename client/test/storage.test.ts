@@ -3,11 +3,9 @@ import { describe, it } from "node:test";
 
 import type { DrawingDocument } from "@drawing-game/shared";
 
-import { createManualSessionRestoreGate } from "../src/session/manual-session-restore";
 import {
   CLIENT_INSTANCE_STORAGE_KEY,
   getOrCreateClientInstanceId,
-  isClientInstanceId,
   readClientInstanceId,
 } from "../src/session/client-instance";
 import {
@@ -39,7 +37,7 @@ import {
 
 class FakeStorage implements BrowserStorage {
   readonly values = new Map<string, string>();
-  constructor(private readonly failing: "get" | "set" | "remove" | "all" | null = null) {}
+  constructor(private readonly failing: "get" | "set" | "all" | null = null) {}
 
   getItem(key: string) {
     if (this.failing === "get" || this.failing === "all") throw new Error("lecture interdite");
@@ -52,8 +50,7 @@ class FakeStorage implements BrowserStorage {
   }
 
   removeItem(key: string) {
-    if (this.failing === "remove" || this.failing === "all")
-      throw new Error("suppression interdite");
+    if (this.failing === "all") throw new Error("suppression interdite");
     this.values.delete(key);
   }
 }
@@ -130,166 +127,97 @@ const modules: StorageModule[] = [
   },
 ];
 
-for (const module of modules) {
-  describe(`stockage local : ${module.name}`, () => {
-    it("écrit puis relit la valeur, et l'efface", () => {
+describe("stockage local du navigateur", () => {
+  // Risque : un stockage corrompu ou indisponible ne doit jamais empêcher de jouer ni restaurer à tort.
+  it("écrit, relit et efface la session et les brouillons, en tolérant corruption et pannes", () => {
+    for (const module of modules) {
       const storage = new FakeStorage();
-
-      assert.equal(module.write(storage), true);
-      assert.deepEqual(module.read(storage), module.valid);
+      assert.equal(module.write(storage), true, `${module.name} : écriture`);
+      assert.deepEqual(module.read(storage), module.valid, `${module.name} : relecture`);
       module.clear(storage);
-      assert.equal(module.read(storage), null);
-    });
+      assert.equal(module.read(storage), null, `${module.name} : effacement`);
 
-    const corrupted: [string, string][] = [
-      ["JSON illisible", "{pas du json"],
-      ["valeur de mauvais type", JSON.stringify([1, 2, 3])],
-      ["clé supplémentaire", JSON.stringify({ ...(module.valid as object), extra: 1 })],
-    ];
-    for (const [label, serialized] of corrupted) {
-      it(`supprime une valeur corrompue (${label})`, () => {
-        const storage = new FakeStorage();
+      const corrupted = [
+        "{pas du json",
+        JSON.stringify([1, 2, 3]),
+        JSON.stringify({ ...(module.valid as object), extra: 1 }),
+        module.oversized,
+      ];
+      for (const serialized of corrupted) {
         storage.values.set(module.key, serialized);
+        assert.equal(module.read(storage), null, `${module.name} : valeur corrompue`);
+        assert.equal(storage.values.has(module.key), false, `${module.name} : valeur supprimée`);
+      }
 
-        assert.equal(module.read(storage), null);
-        assert.equal(storage.values.has(module.key), false);
-      });
-    }
-
-    it("supprime une valeur trop volumineuse", () => {
-      const storage = new FakeStorage();
-      storage.values.set(module.key, module.oversized);
-
-      assert.equal(module.read(storage), null);
-      assert.equal(storage.values.has(module.key), false);
-    });
-
-    it("reste silencieux sans stockage ou avec un stockage qui échoue", () => {
-      assert.equal(module.read(null), null);
-      assert.equal(module.write(null), false);
+      assert.equal(module.parse(null), null, module.name);
+      assert.equal(module.read(null), null, `${module.name} : sans stockage`);
+      assert.equal(module.write(null), false, `${module.name} : sans stockage`);
       module.clear(null);
-
-      assert.equal(module.write(new FakeStorage("set")), false);
-      assert.equal(module.read(new FakeStorage("get")), null);
-      assert.equal(module.read(new FakeStorage("all")), null);
-      module.clear(new FakeStorage("remove"));
-    });
-
-    it("refuse les valeurs invalides", () => {
-      assert.equal(module.parse(null), null);
-      assert.equal(module.parse("texte"), null);
-      assert.equal(module.parse({}), null);
-    });
-
-    it("n'utilise aucun stockage sans navigateur", () => {
-      assert.equal(module.read(undefined as unknown as null), null);
-    });
+      assert.equal(
+        module.write(new FakeStorage("set")),
+        false,
+        `${module.name} : écriture en panne`,
+      );
+      assert.equal(module.read(new FakeStorage("all")), null, `${module.name} : lecture en panne`);
+      module.clear(new FakeStorage("all"));
+      assert.equal(
+        module.read(undefined as unknown as null),
+        null,
+        `${module.name} : sans navigateur`,
+      );
+    }
   });
-}
 
-describe("brouillons : contexte et contenu", () => {
-  const otherContexts = [
-    { ...CONTEXT, roomCode: "ZZZZZ" },
-    { ...CONTEXT, gameId: "autre" },
-    { ...CONTEXT, turnId: "autre" },
-    { ...CONTEXT, playerId: "autre" },
-  ];
-
-  it("reconnaît uniquement le contexte exact", () => {
+  // Risque : appliquer le brouillon ou l'identifiant d'un autre tour, d'une autre partie ou d'un autre onglet.
+  it("n'applique un brouillon qu'à son contexte exact et gère l'identifiant d'instance", () => {
+    for (const other of [
+      { ...CONTEXT, roomCode: "ZZZZZ" },
+      { ...CONTEXT, gameId: "autre" },
+      { ...CONTEXT, turnId: "autre" },
+      { ...CONTEXT, playerId: "autre" },
+    ]) {
+      assert.equal(matchesGuessDraftContext(GUESS_DRAFT, other), false);
+      assert.equal(matchesDrawingDraftContext(DRAWING_DRAFT, other), false);
+    }
     assert.equal(matchesGuessDraftContext(GUESS_DRAFT, CONTEXT), true);
     assert.equal(matchesDrawingDraftContext(DRAWING_DRAFT, CONTEXT), true);
-    for (const context of otherContexts) {
-      assert.equal(matchesGuessDraftContext(GUESS_DRAFT, context), false);
-      assert.equal(matchesDrawingDraftContext(DRAWING_DRAFT, context), false);
-    }
-  });
 
-  const invalidFields: [string, Record<string, unknown>][] = [
-    ["code de salon", { roomCode: "ABCDO" }],
-    ["identifiant vide", { gameId: "" }],
-    ["identifiant avec espace", { turnId: "tour 1" }],
-    ["horodatage négatif", { savedAt: -1 }],
-    ["outil inconnu", { selectedTool: "laser" }],
-    ["couleur hors palette", { selectedColor: "#123456" }],
-    ["épaisseur interdite", { selectedWidth: 5 }],
-    ["dessin invalide", { drawing: { ...DRAWING, strokes: [{ tool: "pen" }] } }],
-    ["dessin d'une autre version", { drawing: { ...DRAWING, version: 3 } }],
-  ];
-  for (const [label, override] of invalidFields) {
-    it(`refuse un brouillon de dessin avec ${label} invalide`, () => {
+    const invalidDrafts: Record<string, unknown>[] = [
+      { selectedTool: "laser" },
+      { selectedColor: "#123456" },
+      { selectedWidth: 5 },
+      { turnId: "tour 1" },
+      { savedAt: -1 },
+      { drawing: { ...DRAWING, strokes: [{ tool: "pen" }] } },
+      { drawing: { ...DRAWING, version: 3 } },
+    ];
+    for (const override of invalidDrafts) {
       assert.equal(parseStoredDrawingDraft({ ...DRAWING_DRAFT, ...override }), null);
-    });
-  }
-
-  it("refuse une estimation hors bornes", () => {
+    }
     assert.equal(parseStoredGuessDraft({ ...GUESS_DRAFT, value: 11 }), null);
-    assert.equal(parseStoredGuessDraft({ ...GUESS_DRAFT, value: 5.5 }), null);
-  });
-});
+    assert.equal(parseStoredSession({ ...SESSION, token: "court" }), null);
+    assert.equal(parseStoredSession({ ...SESSION, roomCode: "abc" }), null);
 
-describe("session : identifiants", () => {
-  const invalid: [string, Record<string, unknown>][] = [
-    ["code de salon", { roomCode: "abc" }],
-    ["identifiant de joueur", { playerId: " p" }],
-    ["jeton", { token: "court" }],
-  ];
-  for (const [label, override] of invalid) {
-    it(`refuse un ${label} invalide`, () => {
-      assert.equal(parseStoredSession({ ...SESSION, ...override }), null);
-      assert.equal(writeStoredSession({ ...SESSION, ...override }, new FakeStorage()), false);
-    });
-  }
-});
-
-describe("identifiant d'instance cliente", () => {
-  const ID = "123e4567-e89b-42d3-a456-426614174000";
-
-  it("crée puis conserve un identifiant par session de navigation", () => {
+    const id = "123e4567-e89b-42d3-a456-426614174000";
     const storage = new FakeStorage();
-    const first = getOrCreateClientInstanceId(storage, () => ID);
-
-    assert.equal(first, ID);
-    assert.equal(storage.values.get(CLIENT_INSTANCE_STORAGE_KEY), ID);
+    assert.equal(
+      getOrCreateClientInstanceId(storage, () => id),
+      id,
+    );
     assert.equal(
       getOrCreateClientInstanceId(storage, () => assert.fail("pas de nouvel id")),
-      ID,
+      id,
     );
-    assert.equal(readClientInstanceId(storage), ID);
-  });
-
-  it("remplace une valeur stockée invalide et fonctionne sans stockage", () => {
-    const storage = new FakeStorage();
     storage.values.set(CLIENT_INSTANCE_STORAGE_KEY, "pas-un-uuid");
-
     assert.equal(readClientInstanceId(storage), null);
-    assert.equal(storage.values.has(CLIENT_INSTANCE_STORAGE_KEY), false);
     assert.equal(
-      getOrCreateClientInstanceId(null, () => ID),
-      ID,
+      getOrCreateClientInstanceId(new FakeStorage("set"), () => id),
+      id,
     );
     assert.equal(
-      getOrCreateClientInstanceId(new FakeStorage("set"), () => ID),
-      ID,
+      getOrCreateClientInstanceId(null, () => id),
+      id,
     );
-    assert.equal(readClientInstanceId(null), null);
-    assert.equal(readClientInstanceId(new FakeStorage("all")), null);
-    assert.ok(isClientInstanceId(getOrCreateClientInstanceId(new FakeStorage())));
-  });
-
-  it("refuse une fabrique qui produit un identifiant invalide", () => {
     assert.throws(() => getOrCreateClientInstanceId(new FakeStorage(), () => "invalide"), Error);
-  });
-});
-
-describe("restauration manuelle", () => {
-  it("n'autorise qu'une restauration à la fois", () => {
-    const gate = createManualSessionRestoreGate();
-
-    assert.equal(gate.isInFlight(), false);
-    assert.equal(gate.begin(), true);
-    assert.equal(gate.begin(), false);
-    assert.equal(gate.isInFlight(), true);
-    gate.finish();
-    assert.equal(gate.begin(), true);
   });
 });

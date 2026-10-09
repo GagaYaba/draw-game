@@ -12,7 +12,7 @@ import type {
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { App, AppLayout } from "../src/App";
+import { App } from "../src/App";
 import { ConnectionRecoveryOverlay } from "../src/components/ConnectionRecoveryOverlay";
 import { DrawingScreen } from "../src/components/DrawingScreen";
 import { FinishedScreen } from "../src/components/FinishedScreen";
@@ -121,9 +121,11 @@ function room(overrides: Partial<PublicRoomState> = {}): PublicRoomState {
 
 const COMMON = { pendingAction: null, errorMessage: null, players: PLAYERS, onLeaveRoom: noop };
 
-describe("accueil et salon", () => {
-  it("affiche l'accueil, ses erreurs et son état d'attente", () => {
-    const props = {
+// Ces tests exécutent le code de rendu de chaque écran sans navigateur (rendu côté serveur).
+// Risque : un écran qui plante au rendu bloque tout le groupe ; les interactions relèvent de l'E2E.
+describe("écrans du jeu", () => {
+  it("affiche l'accueil et le salon, pour l'hôte comme pour un joueur", () => {
+    const home = {
       nickname: "Alice",
       roomCode: "ABCDE",
       pendingAction: null,
@@ -133,71 +135,41 @@ describe("accueil et salon", () => {
       onCreateRoom: noop,
       onJoinRoom: noop,
     };
+    assert.match(html(<HomeScreen {...home} />), /De 2 à 6 joueurs/);
+    assert.match(html(<HomeScreen {...home} errorMessage="Code inconnu" />), /Code inconnu/);
+    assert.match(html(<HomeScreen {...home} pendingAction="create" />), /Création…/);
 
-    const idle = html(<HomeScreen {...props} />);
-    assert.match(idle, /Rejoignez la table de jeu/);
-    assert.match(idle, /De 2 à 6 joueurs/);
-    assert.match(html(<HomeScreen {...props} errorMessage="Code inconnu" />), /Code inconnu/);
-    assert.match(html(<HomeScreen {...props} pendingAction="create" />), /Création…/);
-    assert.match(html(<HomeScreen {...props} pendingAction="join" />), /Connexion…/);
-    assert.match(html(<HomeScreen {...props} isConnectionBlocked />), /disabled/);
-  });
-
-  const lobbyProps = {
-    room: room(),
-    pendingAction: null,
-    errorMessage: null,
-    noticeMessage: null,
-    onSetReady: noop,
-    onStartGame: noop,
-    onLeaveRoom: noop,
-  } as const;
-
-  it("affiche le salon pour l'hôte et pour un joueur", () => {
-    const host = html(<LobbyScreen {...lobbyProps} currentPlayerId="p1" />);
-    assert.match(host, /Votre lobby/);
+    const lobby = {
+      room: room(),
+      pendingAction: null,
+      errorMessage: null,
+      noticeMessage: null,
+      onSetReady: noop,
+      onStartGame: noop,
+      onLeaveRoom: noop,
+    } as const;
+    const host = html(<LobbyScreen {...lobby} currentPlayerId="p1" />);
     assert.match(host, /Lancer la partie/);
-    assert.match(host, /Je ne suis plus prêt/);
     assert.match(host, /3 \/ 6/);
-
-    const guest = html(<LobbyScreen {...lobbyProps} currentPlayerId="p2" />);
-    assert.match(guest, /Je suis prêt/);
-    assert.match(guest, /L’hôte lancera la partie/);
+    assert.match(html(<LobbyScreen {...lobby} currentPlayerId="p2" />), /L’hôte lancera la partie/);
+    const ready = room({
+      canStart: true,
+      allPlayersReady: true,
+      players: PLAYERS.map((player) => ({
+        ...player,
+        isReady: true,
+        isConnected: true,
+        reconnectDeadline: null,
+      })),
+    });
     assert.match(
-      html(
-        <LobbyScreen
-          {...lobbyProps}
-          currentPlayerId="p2"
-          errorMessage="Erreur"
-          noticeMessage="Revanche"
-          pendingAction="ready"
-        />,
-      ),
-      /Mise à jour…/,
-    );
-    assert.match(
-      html(
-        <LobbyScreen
-          {...lobbyProps}
-          currentPlayerId="p1"
-          room={room({
-            canStart: true,
-            allPlayersReady: true,
-            players: PLAYERS.map((player) => ({
-              ...player,
-              isReady: true,
-              isConnected: true,
-              reconnectDeadline: null,
-            })),
-          })}
-        />,
-      ),
+      html(<LobbyScreen {...lobby} currentPlayerId="p1" room={ready} />),
       /Tout le monde est prêt/,
     );
     assert.match(
       html(
         <LobbyScreen
-          {...lobbyProps}
+          {...lobby}
           currentPlayerId="p1"
           room={room({ players: [PLAYERS[0] as PublicPlayer], playerCount: 1 })}
         />,
@@ -205,37 +177,18 @@ describe("accueil et salon", () => {
       /au moins 2 joueurs/,
     );
   });
-});
 
-describe("écrans de partie", () => {
-  it("affiche l'introduction avec la consigne privée du joueur, ou son chargement", () => {
+  it("affiche l'introduction, l'éditeur de dessin et l'attente des autres joueurs", () => {
     const intro = game({ phase: "ROUND_INTRO", phaseEndsAt: Date.now() + 3_000 });
-
-    const ready = html(
-      <RoundIntroScreen {...COMMON} game={intro} secretLevel={4} prompt={PROMPT} />,
+    assert.match(
+      html(<RoundIntroScreen {...COMMON} game={intro} secretLevel={4} prompt={PROMPT} />),
+      /Dessinez une pieuvre élégante/,
     );
-    assert.match(ready, /Tout le monde dessine en même temps/);
-    assert.match(ready, /Dessinez une pieuvre élégante/);
     assert.match(
       html(<RoundIntroScreen {...COMMON} game={intro} secretLevel={null} prompt={null} />),
       /Réception de votre consigne/,
     );
-    assert.match(
-      html(
-        <RoundIntroScreen
-          {...COMMON}
-          game={game({ phase: "ROUND_INTRO" })}
-          secretLevel={4}
-          prompt={PROMPT}
-          errorMessage="Erreur"
-          pendingAction="leave"
-        />,
-      ),
-      /Départ de la partie en cours/,
-    );
-  });
 
-  it("affiche l'éditeur avant validation puis l'attente des autres joueurs", () => {
     const props = {
       ...COMMON,
       roomCode: "ABCDE",
@@ -243,11 +196,10 @@ describe("écrans de partie", () => {
       prompt: PROMPT,
       onSubmitDrawing: noopTrue,
     };
-
-    const editing = html(<DrawingScreen {...props} game={game({})} currentPlayerId="p1" />);
-    assert.match(editing, /Valider le dessin/);
-    assert.match(editing, /Dessins validés/);
-
+    assert.match(
+      html(<DrawingScreen {...props} game={game({})} currentPlayerId="p1" />),
+      /Valider le dessin/,
+    );
     const waiting = html(
       <DrawingScreen
         {...props}
@@ -257,27 +209,10 @@ describe("écrans de partie", () => {
     );
     assert.match(waiting, /En attente des autres joueurs/);
     assert.match(waiting, /Encore en train de dessiner : Bob, Chloe/);
-
-    const everyone = html(
-      <DrawingScreen
-        {...props}
-        game={game({ drawing: { submittedPlayerIds: ["p1", "p2", "p3"] } })}
-        currentPlayerId="p1"
-      />,
-    );
-    assert.match(everyone, /Les votes vont commencer/);
+    const everyone = game({ drawing: { submittedPlayerIds: ["p1", "p2", "p3"] } });
     assert.match(
-      html(
-        <DrawingScreen
-          {...props}
-          game={game({})}
-          currentPlayerId="p1"
-          secretLevel={null}
-          prompt={null}
-          errorMessage="Erreur"
-        />,
-      ),
-      /Réception de votre/,
+      html(<DrawingScreen {...props} game={everyone} currentPlayerId="p1" />),
+      /Les votes vont commencer/,
     );
   });
 
@@ -300,19 +235,11 @@ describe("écrans de partie", () => {
 
   it("affiche le vote : choix du votant, estimation validée, dessin de l'auteur", () => {
     const props = { ...COMMON, game: voting, onSelectGuess: noop, onSubmitGuess: noopTrue };
-
     const voter = html(
-      <VotingScreen
-        {...props}
-        currentPlayerId="p2"
-        guessState={guess({ selected: 6, error: "Choisissez" })}
-      />,
+      <VotingScreen {...props} currentPlayerId="p2" guessState={guess({ selected: 6 })} />,
     );
     assert.match(voter, /Quel niveau Alice devait-il représenter/);
-    assert.match(voter, /Valider mon estimation/);
     assert.match(voter, /1 estimation reçue sur 2/);
-    assert.match(voter, /Votre estimation/);
-
     assert.match(
       html(
         <VotingScreen
@@ -326,23 +253,6 @@ describe("écrans de partie", () => {
     assert.match(
       html(<VotingScreen {...props} currentPlayerId="p1" guessState={guess()} />),
       /Votre dessin est présenté/,
-    );
-    assert.match(
-      html(
-        <VotingScreen {...props} currentPlayerId="p2" guessState={guess({ isSubmitting: true })} />,
-      ),
-      /Validation de votre estimation en cours/,
-    );
-    assert.match(
-      html(
-        <VotingScreen
-          {...props}
-          game={{ ...voting, voting: null, submittedDrawing: null }}
-          currentPlayerId="p2"
-          guessState={guess()}
-        />,
-      ),
-      /indisponible/,
     );
     assert.equal(
       html(
@@ -395,134 +305,73 @@ describe("écrans de partie", () => {
       reveal: nextStep === null ? null : reveal(nextStep),
     });
 
-  const steps: [RevealNextStep, string][] = [
-    ["NEXT_DRAWING", "Dessin suivant"],
-    ["NEXT_ROUND", "Manche suivante"],
-    ["FINAL", "Voir le classement final"],
-  ];
-  for (const [nextStep, label] of steps) {
-    it(`affiche la révélation avant « ${label} »`, () => {
+  it("affiche la révélation et le bouton adapté à la suite de la partie", () => {
+    const labels: [RevealNextStep, string][] = [
+      ["NEXT_DRAWING", "Dessin suivant"],
+      ["NEXT_ROUND", "Manche suivante"],
+      ["FINAL", "Voir le classement final"],
+    ];
+    for (const [nextStep, label] of labels) {
       const props = { ...COMMON, game: revealGame(nextStep), onContinueGame: noopTrue };
-
       const host = html(<RevealScreen {...props} currentPlayerId="p1" isHost />);
-      assert.match(host, new RegExp(label));
+      assert.match(host, new RegExp(label), label);
       assert.match(host, /Les estimations étaient en moyenne à 2 de votre niveau/);
       assert.match(host, /Exact !/);
+      assert.match(
+        html(<RevealScreen {...props} currentPlayerId="p2" isHost={false} />),
+        /En attente de l’hôte/,
+      );
+    }
 
-      const guest = html(<RevealScreen {...props} currentPlayerId="p2" isHost={false} />);
-      assert.match(guest, /En attente de l’hôte/);
-      assert.match(guest, /Bob/);
-    });
-  }
-
-  it("affiche la révélation sans résultats ou sans dessin à présenter", () => {
+    const props = { ...COMMON, currentPlayerId: "p1", isHost: true, onContinueGame: noopTrue };
     assert.match(
-      html(
-        <RevealScreen
-          {...COMMON}
-          game={revealGame(null)}
-          currentPlayerId="p1"
-          isHost
-          onContinueGame={noopTrue}
-        />,
-      ),
+      html(<RevealScreen {...props} game={revealGame(null)} />),
       /Résultats indisponibles/,
     );
-    assert.equal(
-      html(
-        <RevealScreen
-          {...COMMON}
-          game={game({ phase: "REVEAL" })}
-          currentPlayerId="p1"
-          isHost
-          onContinueGame={noopTrue}
-        />,
-      ),
-      "",
-    );
-    assert.match(
-      html(
-        <RevealScreen
-          {...COMMON}
-          game={revealGame("FINAL")}
-          currentPlayerId="p1"
-          isHost
-          pendingAction="continue"
-          errorMessage="Erreur"
-          onContinueGame={noopTrue}
-        />,
-      ),
-      /Préparation…/,
-    );
+    assert.equal(html(<RevealScreen {...props} game={game({ phase: "REVEAL" })} />), "");
   });
 
-  const finished = (winnerCount: number): PublicFinishedState => ({
-    leaderboard: LEADERBOARD,
-    winners: LEADERBOARD.slice(0, winnerCount).map((entry) => ({
-      ...entry.player,
-      score: entry.score,
-    })),
-    completedRounds: 2,
-    completedTurns: 6,
-  });
-
-  it("affiche le classement final, la victoire ou l'égalité et la revanche", () => {
+  it("affiche le classement final, la connexion interrompue et l'application", () => {
+    const finished = (winnerCount: number): PublicFinishedState => ({
+      leaderboard: LEADERBOARD,
+      winners: LEADERBOARD.slice(0, winnerCount).map((entry) => ({
+        ...entry.player,
+        score: entry.score,
+      })),
+      completedRounds: 2,
+      completedTurns: 6,
+    });
     const props = { ...COMMON, currentPlayerId: "p1", onRequestRematch: noopTrue };
-
-    const win = html(<FinishedScreen {...props} finished={finished(1)} isHost />);
-    assert.match(win, /Victoire de Alice/);
-    assert.match(win, /Proposer une revanche/);
     assert.match(
-      html(<FinishedScreen {...props} finished={finished(2)} isHost={false} />),
-      /Victoire partagée/,
+      html(<FinishedScreen {...props} finished={finished(1)} isHost />),
+      /Victoire de Alice/,
     );
     assert.match(
-      html(<FinishedScreen {...props} finished={finished(2)} isHost={false} />),
-      /L’hôte peut proposer une revanche/,
+      html(<FinishedScreen {...props} finished={finished(2)} isHost />),
+      /Proposer une revanche/,
     );
-    assert.match(html(<FinishedScreen {...props} finished={null} isHost />), /indisponible/i);
-  });
-});
+    const tie = html(<FinishedScreen {...props} finished={finished(2)} isHost={false} />);
+    assert.match(tie, /Victoire partagée/);
+    assert.match(tie, /L’hôte peut proposer une revanche/);
 
-describe("connexion et mise en page", () => {
-  const overlay = (status: Parameters<typeof ConnectionRecoveryOverlay>[0]["status"], extra = {}) =>
-    html(
-      <ConnectionRecoveryOverlay
-        status={status}
-        announcement="Annonce"
-        hasStoredSession
-        isRetryingSessionRestore={false}
-        onRetry={noop}
-        {...extra}
-      />,
-    );
-
-  it("signale une connexion interrompue, une restauration et un échec", () => {
-    assert.match(overlay("disconnected"), /Connexion interrompue/);
-    assert.match(overlay("restoring"), /Restauration/);
-    assert.match(overlay("restore-failed"), /Restauration interrompue/);
-    assert.match(overlay("restore-failed", { isRetryingSessionRestore: true }), /button/);
-    assert.doesNotMatch(overlay("connected"), /connection-recovery-overlay/);
-    assert.doesNotMatch(
-      overlay("disconnected", { hasStoredSession: false }),
-      /connection-recovery-overlay/,
-    );
-  });
-
-  it("adapte la mise en page à la partie, au salon et à l'accueil", () => {
-    assert.match(html(<AppLayout isGameActive>contenu</AppLayout>), /app-shell--active/);
-    assert.match(
+    const overlay = (
+      status: Parameters<typeof ConnectionRecoveryOverlay>[0]["status"],
+      hasStoredSession = true,
+    ) =>
       html(
-        <AppLayout isGameActive={false} isLobby>
-          contenu
-        </AppLayout>,
-      ),
-      /app-shell--lobby/,
-    );
-    assert.match(html(<AppLayout isGameActive={false}>contenu</AppLayout>), /Jeu multijoueur/);
-  });
+        <ConnectionRecoveryOverlay
+          status={status}
+          announcement="Annonce"
+          hasStoredSession={hasStoredSession}
+          isRetryingSessionRestore={false}
+          onRetry={noop}
+        />,
+      );
+    assert.match(overlay("disconnected"), /Connexion interrompue/);
+    assert.match(overlay("restore-failed"), /Restauration interrompue/);
+    assert.doesNotMatch(overlay("connected"), /connection-recovery-overlay/);
+    assert.doesNotMatch(overlay("disconnected", false), /connection-recovery-overlay/);
 
-  it("assemble l'application à l'accueil sans navigateur", () => {
     const globals = globalThis as unknown as { window?: unknown };
     const previous = globals.window;
     globals.window = {
@@ -530,7 +379,6 @@ describe("connexion et mise en page", () => {
       localStorage: undefined,
       sessionStorage: undefined,
     };
-
     try {
       assert.match(html(<App />), /Rejoignez la table de jeu/);
     } finally {

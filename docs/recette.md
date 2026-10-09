@@ -161,7 +161,46 @@ Colonne « Moyen » : *E2E* et *Unitaire* renvoient à un test permanent existan
 | RC39 | US26 | Parcours avec un lecteur d'écran. | Noms et rôles annoncés ; changements de phase annoncés. | Accessibilité | Manuel (5) | Non exécuté |
 | RC40 | US26 | Contrôle automatique et contrastes, zoom à 200 %. | Pas de violation automatique du référentiel retenu ; contrastes suffisants. | Accessibilité | À automatiser (5) | Non exécuté |
 
-## 5. Couverture des tests unitaires
+## 5. Tests automatisés et risques couverts
+
+La suite compte **30 tests unitaires et d'intégration** et **1 test E2E**. Chaque test regroupe les cas d'un même risque (tableaux d'entrées et de résultats attendus) ; un test n'existe que s'il protège un risque identifié.
+
+| Fichier | Test | Risque couvert |
+| --- | --- | --- |
+| `server/test/game.test.ts` | Barème et suite de la partie | Un score faux fausse le classement final. |
+| | Partie à dessin simultané | Fuite de secret, enchaînement des dessins ou des manches incorrect, scores incohérents. |
+| `server/test/rooms.test.ts` | Bornes de joueurs | Règle de jeu 2 à 6 joueurs non respectée. |
+| | Fermeture des salons inactifs | Saturation mémoire par des salons abandonnés. |
+| `server/test/security.test.ts` | Limiteurs, fenêtres, adresse IP | Quota faux : joueurs légitimes bloqués ou flood non limité. |
+| | Échecs d'accès et connexions par adresse | Énumération de codes, saturation des connexions. |
+| `server/test/validation.test.ts` | Saisies (pseudonymes, codes, commandes) | Données mal formées ou injection. |
+| | Sessions, jetons, estimations | Prise de place d'un joueur, triche par estimation falsifiée. |
+| | Dessins | Dessin hors limites : saturation mémoire ou réseau. |
+| | Origine WebSocket | Site tiers pilotant le serveur depuis le navigateur d'un joueur. |
+| `server/test/shutdown.test.ts` | Arrêt gracieux (2 tests) | Déploiement qui laisse des connexions ou des minuteurs actifs. |
+| `server/test/quotas.test.ts` | En-têtes et origines (réseau réel) | Navigateur insuffisamment protégé. |
+| | Quotas HTTP et événements | Flood épuisant le processeur de l'instance unique. |
+| | Échecs de jonction, salons, connexions par IP | Énumération, création massive de salons. |
+| `server/test/server.test.ts` | Partie complète sur serveur réel | Contrat réseau : autorisations, phases, secrets de bout en bout. |
+| | Restauration, expiration, mauvais identifiants | Coupure réseau : place perdue, partie bloquée, usurpation. |
+| | Départ et transfert d'hôte | Partie bloquée après un départ. |
+| | Saisies et commandes hors contexte | Une commande invalide modifie l'état du jeu. |
+| | Salon plein, pseudonyme pris, partie commencée | Règles d'admission contournées. |
+| `client/test/storage.test.ts` | Stockage local | Stockage corrompu ou indisponible qui empêche de jouer ou restaure à tort. |
+| | Contexte des brouillons, identifiant d'instance | Brouillon ou identifiant d'un autre tour, d'une autre partie ou d'un autre onglet. |
+| `client/test/drawing.test.ts` | Normalisation et document de dessin | Dessin déformé à l'envoi. |
+| | Remplissage | Pot de peinture qui déborde ou plante. |
+| | Cache de rendu | Dessin affiché différent du dessin envoyé. |
+| `client/test/screens.test.tsx` | Accueil et salon | Écran qui plante au rendu et bloque le groupe. |
+| | Introduction, dessin, attente | Idem, et information d'attente fausse. |
+| | Vote | Idem, et auteur autorisé à voter. |
+| | Révélation | Idem, et bouton de suite inadapté. |
+| | Classement, connexion, application | Idem, et message de reconnexion absent. |
+| `e2e/main-game.spec.ts` | Partie complète à trois joueurs | Parcours réel dans un navigateur, restauration après actualisation, revanche, départ. |
+
+Ces tests ne couvrent pas les gestionnaires d'événements ni les effets des composants (canevas, minuteries) : ils relèvent du test E2E.
+
+## 5 bis. Couverture des tests unitaires
 
 Commande : `npm run test:coverage` (tests unitaires, d'intégration serveur et de rendu des écrans ; `c8` avec l'option `all`, qui compte aussi les fichiers jamais exécutés). Le détail par fichier s'obtient avec `node scripts/coverage-report.mjs --files <préfixe>`.
 
@@ -169,11 +208,11 @@ Commande : `npm run test:coverage` (tests unitaires, d'intégration serveur et d
 
 | Périmètre | Lignes couvertes | Couverture |
 | --- | --- | --- |
-| Serveur (`server/src`) | 4 421 / 5 154 | 85,8 % |
+| Serveur (`server/src`) | 4 324 / 5 154 | 83,9 % |
 | Partagé (`shared/src`) | 155 / 155 | 100,0 % |
-| Client, composants React | 3 834 / 4 631 | 82,8 % |
-| Client, hors composants (dont le hook `useRoomSession`) | 1 258 / 2 641 | 47,6 % |
-| **Total** | **9 668 / 12 581** | **76,8 %** |
+| Client, composants React | 3 706 / 4 631 | 80,0 % |
+| Client, hors composants (dont le hook `useRoomSession`) | 1 157 / 2 641 | 43,8 % |
+| **Total** | **9 342 / 12 581** | **74,3 %** |
 
 Mesure locale sous Node 22.12.0 ; la CI exécute la même commande et échoue sous 70 % de lignes (seuil interne de non-régression, absent du référentiel).
 

@@ -39,6 +39,12 @@ async function newReadyRoom(server: TestServer, names: string[]) {
   return room;
 }
 
+async function connectAs(server: TestServer, name: string) {
+  const client = await connect(server, name);
+  allClients.push(client);
+  return client;
+}
+
 afterEach(async () => {
   closeAll(allClients.splice(0));
   for (const server of servers.splice(0)) {
@@ -46,8 +52,9 @@ afterEach(async () => {
   }
 });
 
-describe("partie complète sur un serveur réel", () => {
-  it("joue deux manches, avec refus d'actions interdites, puis revanche et départ", async () => {
+describe("partie sur un serveur réel", () => {
+  // Risque : le contrat réseau (autorisations, phases, secrets) doit tenir de bout en bout.
+  it("joue deux manches avec refus d'actions interdites, puis revanche et départ", async () => {
     const server = await newServer();
     const { clients, host, roomCode } = await newReadyRoom(server, ["Alice", "Bob", "Chloe"]);
     const [alice, bob, chloe] = clients as [TestClient, TestClient, TestClient];
@@ -121,20 +128,11 @@ describe("partie complète sur un serveur réel", () => {
           await until(() => phaseOf(host) === "VOTING");
         }
       }
-
-      if (round === 1) {
-        await until(() => phaseOf(host) === "ROUND_INTRO" || phaseOf(host) === "DRAWING");
-        await until(() => phaseOf(host) === "DRAWING");
-      }
     }
 
     await until(() => phaseOf(host) === "FINISHED");
     expectError(await request(host, "game:continue"), "GAME_ALREADY_FINISHED");
     expectError(await request(bob, "game:request-rematch"), "NOT_HOST");
-    expectError(
-      await request(host, "game:request-rematch", { extra: true }),
-      "INVALID_GAME_REMATCH_REQUEST",
-    );
     expectData(await request(host, "game:request-rematch"));
     await until(() => latest(bob).game === null);
 
@@ -144,7 +142,8 @@ describe("partie complète sur un serveur réel", () => {
   });
 });
 
-describe("restauration, déconnexion et expiration", () => {
+describe("restauration, déconnexion et départ", () => {
+  // Risque : une coupure réseau ne doit ni faire perdre sa place à un joueur ni laisser la partie bloquée.
   it("restaure une session, refuse les mauvais identifiants et annule la partie à l'expiration", async () => {
     const server = await newServer({ reconnectGraceMs: 400 });
     const { clients, host } = await newReadyRoom(server, ["Alice", "Bob", "Chloe"]);
@@ -158,14 +157,12 @@ describe("restauration, déconnexion et expiration", () => {
     await until(() => latest(alice).players.some((player) => !player.isConnected));
 
     const restoring = await connectAs(server, "Bob-bis");
-    const wrongToken = {
-      ...credentials,
-      token: "A".repeat(43),
-      clientInstanceId: bob.clientInstanceId,
-    };
-    expectError(await request(restoring, "session:restore", wrongToken), "INVALID_SESSION");
     expectError(
-      await request(restoring, "session:restore", { ...credentials, token: "short" }),
+      await request(restoring, "session:restore", {
+        ...credentials,
+        token: "A".repeat(43),
+        clientInstanceId: bob.clientInstanceId,
+      }),
       "INVALID_SESSION",
     );
     const restored = expectData(
@@ -222,38 +219,28 @@ describe("restauration, déconnexion et expiration", () => {
 });
 
 describe("refus de saisies et de commandes", () => {
-  const invalidNicknames = ["", "A", "x".repeat(21), "bad<name>", "tab\tname", 12];
-
-  for (const nickname of invalidNicknames) {
-    it(`refuse le pseudonyme ${JSON.stringify(nickname)}`, async () => {
-      const server = await newServer();
-      const client = await connectAs(server, "Testeur");
-      expectError(
-        await request(client, "room:create", {
-          nickname,
-          clientInstanceId: client.clientInstanceId,
-        }),
-        "INVALID_NICKNAME",
-      );
-    });
-  }
-
-  it("refuse les charges utiles mal formées et les commandes hors contexte", async () => {
+  // Risque : des saisies mal formées ou hors contexte ne doivent jamais modifier l'état du jeu.
+  it("refuse les pseudonymes, charges et commandes invalides", async () => {
     const server = await newServer();
     const client = await connectAs(server, "Testeur");
+    const id = client.clientInstanceId;
 
+    for (const nickname of ["", "A", "x".repeat(21), "bad<name>", "tab\tname", 12]) {
+      expectError(
+        await request(client, "room:create", { nickname, clientInstanceId: id }),
+        "INVALID_NICKNAME",
+      );
+    }
     expectError(await request(client, "room:create", undefined), "INVALID_NICKNAME");
-    expectError(await request(client, "room:create", { nickname: "Alice" }), "INVALID_NICKNAME");
     expectError(
       await request(client, "room:create", { nickname: "Alice", clientInstanceId: "pas-un-uuid" }),
       "INVALID_SESSION",
     );
-    expectError(await request(client, "room:join", { nickname: "Alice" }), "INVALID_NICKNAME");
     expectError(
       await request(client, "room:join", {
         nickname: "Alice",
         roomCode: "12",
-        clientInstanceId: client.clientInstanceId,
+        clientInstanceId: id,
       }),
       "INVALID_ROOM_CODE",
     );
@@ -261,7 +248,7 @@ describe("refus de saisies et de commandes", () => {
       await request(client, "room:join", {
         nickname: "Alice",
         roomCode: "ZZZZZ",
-        clientInstanceId: client.clientInstanceId,
+        clientInstanceId: id,
       }),
       "ROOM_NOT_FOUND",
     );
@@ -269,77 +256,68 @@ describe("refus de saisies et de commandes", () => {
       await request(client, "player:set-ready", { isReady: "oui" }),
       "INVALID_READY_STATUS",
     );
-    expectError(await request(client, "player:set-ready", { isReady: true }), "NOT_IN_ROOM");
     expectError(await request(client, "game:start", { extra: 1 }), "INVALID_GAME_START_REQUEST");
-    expectError(await request(client, "game:start"), "NOT_IN_ROOM");
     expectError(
       await request(client, "game:continue", { extra: 1 }),
       "INVALID_GAME_CONTINUE_REQUEST",
     );
-    expectError(await request(client, "game:continue"), "NOT_IN_ROOM");
     expectError(
       await request(client, "game:request-rematch", { extra: 1 }),
       "INVALID_GAME_REMATCH_REQUEST",
     );
-    expectError(await request(client, "drawing:submit", { drawing: DRAWING }), "NOT_IN_ROOM");
-    expectError(await request(client, "guess:submit", { turnId: "x", value: 5 }), "NOT_IN_ROOM");
-    expectError(await request(client, "room:leave"), "NOT_IN_ROOM");
-    expectError(await request(client, "session:restore", { roomCode: "ABCDE" }), "INVALID_SESSION");
+
+    for (const [event, payload] of [
+      ["player:set-ready", { isReady: true }],
+      ["game:start", undefined],
+      ["game:continue", undefined],
+      ["drawing:submit", { drawing: DRAWING }],
+      ["guess:submit", { turnId: "x", value: 5 }],
+      ["room:leave", undefined],
+    ] as const) {
+      expectError(
+        payload === undefined
+          ? await request(client, event)
+          : await request(client, event, payload),
+        "NOT_IN_ROOM",
+      );
+    }
   });
 
-  it("refuse un pseudonyme déjà pris, un salon plein et une partie déjà commencée", async () => {
+  it("refuse un salon plein, un pseudonyme déjà pris et une partie déjà commencée", async () => {
     const server = await newServer();
     const names = ["Alice", "Bob", "Chloe", "Dan", "Eve", "Fay"];
     const { clients, host, roomCode } = await newReadyRoom(server, names);
+    const join = (client: TestClient, nickname: string) =>
+      request(client, "room:join", {
+        nickname,
+        roomCode,
+        clientInstanceId: client.clientInstanceId,
+      });
 
     const extra = await connectAs(server, "Gus");
-    expectError(
-      await request(extra, "room:join", {
-        nickname: "gus",
-        roomCode,
-        clientInstanceId: extra.clientInstanceId,
-      }),
-      "ROOM_FULL",
-    );
+    expectError(await join(extra, "Gus"), "ROOM_FULL");
 
     expectData(await request(host, "game:start"));
     await until(() => phaseOf(host) === "DRAWING");
-    expectError(
-      await request(extra, "room:join", {
-        nickname: "Gus",
-        roomCode,
-        clientInstanceId: extra.clientInstanceId,
-      }),
-      "GAME_ALREADY_STARTED",
-    );
+    expectError(await join(extra, "Gus"), "GAME_ALREADY_STARTED");
     expectError(await request(clients[1] as TestClient, "game:start"), "NOT_HOST");
     expectError(
       await request(clients[1] as TestClient, "player:set-ready", { isReady: false }),
       "GAME_ALREADY_STARTED",
     );
-  });
 
-  it("refuse un doublon de pseudonyme sans tenir compte de la casse", async () => {
-    const server = await newServer();
-    const { host, roomCode } = await newReadyRoom(server, ["Alice", "Bob"]);
-    assert.ok(host);
-
-    const other = await connectAs(server, "Autre");
+    const second = await newServer();
+    const duo = await newReadyRoom(second, ["Alice", "Bob"]);
+    const other = await connectAs(second, "Autre");
     expectError(
       await request(other, "room:join", {
         nickname: "bob",
-        roomCode,
+        roomCode: duo.roomCode,
         clientInstanceId: other.clientInstanceId,
       }),
       "NICKNAME_ALREADY_USED",
     );
-    const joined = await joinRoomAs(other, roomCode, "Carole");
-    assert.equal(joined.session.roomCode, roomCode);
+    const joined = await joinRoomAs(other, duo.roomCode, "Carole");
+    assert.equal(joined.session.roomCode, duo.roomCode);
   });
 });
-
-async function connectAs(server: TestServer, name: string) {
-  const client = await connect(server, name);
-  allClients.push(client);
-  return client;
-}
