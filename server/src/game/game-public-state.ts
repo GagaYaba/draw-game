@@ -5,8 +5,9 @@ import { cloneDrawingDocument } from "./drawing-validation.js";
 import {
   buildLeaderboard,
   getEligibleVoterIds,
-  getNextTurnPosition,
+  getNextStep,
   getSubmittedGuessCount,
+  requireCurrentTurn,
 } from "./game-rules.js";
 import type { InternalGame } from "./game-types.js";
 
@@ -27,8 +28,9 @@ export function createPublicRevealState(
   game: InternalGame,
   players: readonly InternalPlayer[],
 ): PublicRevealState {
-  const scoreResult = game.currentTurn.scoreResult;
-  if (game.currentTurn.scoresAppliedAt === null || scoreResult === null) {
+  const turn = requireCurrentTurn(game);
+  const scoreResult = turn.scoreResult;
+  if (turn.scoresAppliedAt === null || scoreResult === null) {
     throw new RoomManagerError(
       "INTERNAL_ERROR",
       "Les scores du tour doivent être calculés avant la révélation.",
@@ -41,7 +43,7 @@ export function createPublicRevealState(
   const guesses = players
     .filter((player) => eligibleVoterIdSet.has(player.id))
     .map((player) => {
-      const guess = game.currentTurn.guesses[player.id];
+      const guess = turn.guesses[player.id];
       const result = scoreResult.guesses[player.id];
 
       if (
@@ -70,43 +72,25 @@ export function createPublicRevealState(
     throw new RoomManagerError("INTERNAL_ERROR", "Impossible de publier toutes les estimations.");
   }
 
-  const drawer = players.find((player) => player.id === game.currentTurn.drawerPlayerId);
-  if (drawer === undefined || scoreResult.drawer.playerId !== drawer.id) {
-    throw new RoomManagerError("INTERNAL_ERROR", "Le résultat du dessinateur est introuvable.");
-  }
-
-  const nextPosition = getNextTurnPosition(game);
-  const nextDrawerId =
-    nextPosition === null ? null : game.turnOrder[nextPosition.currentDrawerIndex];
-  const nextDrawer =
-    nextDrawerId === null || nextDrawerId === undefined
-      ? null
-      : players.find((player) => player.id === nextDrawerId);
-
-  if (nextDrawerId !== null && nextDrawer === undefined) {
-    throw new RoomManagerError("INTERNAL_ERROR", "Le prochain dessinateur est introuvable.");
+  const author = players.find((player) => player.id === turn.drawerPlayerId);
+  if (author === undefined || scoreResult.drawer.playerId !== author.id) {
+    throw new RoomManagerError("INTERNAL_ERROR", "Le résultat de l'auteur est introuvable.");
   }
 
   return {
-    secretLevel: game.currentTurn.secretLevel,
+    secretLevel: turn.secretLevel,
     guesses,
     drawerResult: {
       player: {
-        id: drawer.id,
-        nickname: drawer.nickname,
+        id: author.id,
+        nickname: author.nickname,
       },
-      closeGuessCount: scoreResult.drawer.closeGuessCount,
+      averageDistance: scoreResult.drawer.averageDistance,
       pointsEarned: scoreResult.drawer.pointsEarned,
       totalScore: scoreResult.drawer.totalScore,
     },
     leaderboard: buildLeaderboard(players, game.turnOrder),
-    nextDrawer:
-      nextDrawer === null || nextDrawer === undefined
-        ? null
-        : {
-            id: nextDrawer.id,
-            nickname: nextDrawer.nickname,
-          },
+    nextStep: getNextStep(game),
   };
 }
 
@@ -139,26 +123,33 @@ export function toPublicGameState(
   game: InternalGame,
   players: readonly InternalPlayer[],
 ): PublicGameState {
-  const activeDrawer = players.find((player) => player.id === game.currentTurn.drawerPlayerId);
-  const historicalDrawer =
-    game.phase === "FINISHED"
-      ? game.finishedState?.leaderboard.find(
-          (entry) => entry.player.id === game.currentTurn.drawerPlayerId,
-        )?.player
-      : undefined;
-  const drawer = activeDrawer ?? historicalDrawer;
+  const turn = game.currentTurn;
+  const isShowingDrawing = game.phase === "VOTING" || game.phase === "REVEAL";
 
-  if (drawer === undefined) {
-    throw new RoomManagerError("INTERNAL_ERROR", "Le dessinateur du tour est introuvable.");
+  if (isShowingDrawing && (turn === null || turn.drawing === null)) {
+    throw new RoomManagerError("INTERNAL_ERROR", "Le dessin soumis est introuvable.");
   }
 
-  const { drawing, drawingSubmittedAt } = game.currentTurn;
-  const submittedDrawingIsPublic = game.phase === "VOTING" || game.phase === "REVEAL";
   if (
-    submittedDrawingIsPublic &&
-    (drawing === null || drawingSubmittedAt === null || !Number.isFinite(drawingSubmittedAt))
+    isShowingDrawing &&
+    turn !== null &&
+    (turn.drawingSubmittedAt === null || !Number.isFinite(turn.drawingSubmittedAt))
   ) {
     throw new RoomManagerError("INTERNAL_ERROR", "Le dessin soumis est introuvable.");
+  }
+
+  const activeAuthor =
+    turn === null ? undefined : players.find((player) => player.id === turn.drawerPlayerId);
+  const historicalAuthor =
+    game.phase === "FINISHED" && turn !== null
+      ? game.finishedState?.leaderboard.find((entry) => entry.player.id === turn.drawerPlayerId)
+          ?.player
+      : undefined;
+  const author = activeAuthor ?? historicalAuthor;
+  const showsAuthor = turn !== null && game.phase !== "ROUND_INTRO" && game.phase !== "DRAWING";
+
+  if (showsAuthor && author === undefined) {
+    throw new RoomManagerError("INTERNAL_ERROR", "L'auteur du dessin est introuvable.");
   }
 
   const eligibleVoterIds = getEligibleVoterIds(game, players);
@@ -175,25 +166,36 @@ export function toPublicGameState(
   return {
     gameId: game.gameId,
     phase: game.phase,
-    turnId: game.currentTurn.turnId,
+    turnId: showsAuthor && turn !== null ? turn.turnId : game.roundId,
     totalRounds: game.totalRounds,
     currentRound: game.currentRound,
-    currentTurnNumber:
-      (game.currentRound - 1) * game.turnOrder.length + game.currentDrawerIndex + 1,
+    currentTurnNumber: (game.currentRound - 1) * game.turnOrder.length + game.votingIndex + 1,
     totalTurns: game.turnOrder.length * game.totalRounds,
-    currentDrawer: { id: drawer.id, nickname: drawer.nickname },
-    prompt: {
-      id: game.currentTurn.prompt.id,
-      statement: game.currentTurn.prompt.statement,
-      lowLabel: game.currentTurn.prompt.lowLabel,
-      highLabel: game.currentTurn.prompt.highLabel,
-    },
-    phaseEndsAt: game.phaseEndsAt,
-    submittedDrawing:
-      submittedDrawingIsPublic && drawing !== null && drawingSubmittedAt !== null
+    currentDrawer:
+      showsAuthor && author !== undefined ? { id: author.id, nickname: author.nickname } : null,
+    prompt:
+      showsAuthor && turn !== null
         ? {
-            document: cloneDrawingDocument(drawing),
-            submittedAt: drawingSubmittedAt,
+            id: turn.prompt.id,
+            statement: turn.prompt.statement,
+            lowLabel: turn.prompt.lowLabel,
+            highLabel: turn.prompt.highLabel,
+          }
+        : null,
+    phaseEndsAt: game.phaseEndsAt,
+    drawing:
+      game.phase === "DRAWING"
+        ? {
+            submittedPlayerIds: game.turnOrder.filter(
+              (playerId) => game.entries[playerId]?.drawingSubmittedAt != null,
+            ),
+          }
+        : null,
+    submittedDrawing:
+      isShowingDrawing && turn !== null && turn.drawing !== null && turn.drawingSubmittedAt !== null
+        ? {
+            document: cloneDrawingDocument(turn.drawing),
+            submittedAt: turn.drawingSubmittedAt,
           }
         : null,
     voting:

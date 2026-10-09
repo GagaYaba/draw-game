@@ -64,12 +64,12 @@ export function App() {
   const game = room?.game ?? null;
   const isGameActive = game !== null && game.phase !== "LOBBY";
   const currentPlayer = room?.players.find((player) => player.id === currentPlayerId) ?? null;
-  const currentPlayerSecret =
+  const roundSecrets =
     game !== null &&
-    game.currentDrawer.id === currentPlayerId &&
+    (game.phase === "ROUND_INTRO" || game.phase === "DRAWING") &&
     roomSession.gameSecrets.gameId === game.gameId &&
     roomSession.gameSecrets.turnId === game.turnId
-      ? roomSession.gameSecrets.secretLevel
+      ? roomSession.gameSecrets
       : null;
 
   return (
@@ -102,8 +102,8 @@ export function App() {
         ) : game.phase === "ROUND_INTRO" ? (
           <RoundIntroScreen
             game={game}
-            currentPlayerId={currentPlayerId}
-            secretLevel={currentPlayerSecret}
+            secretLevel={roundSecrets?.secretLevel ?? null}
+            prompt={roundSecrets?.prompt ?? null}
             pendingAction={roomSession.pendingAction}
             errorMessage={roomSession.errorMessage}
             players={room.players}
@@ -115,7 +115,8 @@ export function App() {
             roomCode={room.code}
             game={game}
             currentPlayerId={currentPlayerId}
-            secretLevel={currentPlayerSecret}
+            secretLevel={roundSecrets?.secretLevel ?? null}
+            prompt={roundSecrets?.prompt ?? null}
             pendingAction={roomSession.pendingAction}
             errorMessage={roomSession.errorMessage}
             players={room.players}
@@ -127,7 +128,6 @@ export function App() {
           <VotingScreen
             game={game}
             currentPlayerId={currentPlayerId}
-            secretLevel={currentPlayerSecret}
             guessState={roomSession.guessState}
             pendingAction={roomSession.pendingAction}
             errorMessage={roomSession.errorMessage}

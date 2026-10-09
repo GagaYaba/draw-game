@@ -14,7 +14,9 @@ import type {
   GameManagerOptions,
   InternalGame,
   InternalTurn,
+  PlayerAssignment,
   RequestRematchInternalResult,
+  RoundEntry,
   StartGameInternalResult,
   SubmitDrawingInternalResult,
   SubmitGuessInternalResult,
@@ -25,7 +27,8 @@ import {
   areAllGuessesSubmitted,
   cloneTurnScoreResult,
   getEligibleVoterIds,
-  getNextTurnPosition,
+  getNextStep,
+  requireCurrentTurn,
 } from "./game-rules.js";
 import { DRAWING_PROMPTS } from "./prompt-bank.js";
 
@@ -41,11 +44,9 @@ export {
   calculateDrawerPoints,
   calculateGuessPoints,
   getEligibleVoterIds,
-  getNextTurnPosition,
+  getNextStep,
   getSubmittedGuessCount,
-  hasNextTurn,
 } from "./game-rules.js";
-export type { NextTurnPosition } from "./game-rules.js";
 
 export const ROUND_INTRO_DURATION_MS = 3_000;
 export const TOTAL_ROUNDS = 2;
@@ -68,7 +69,7 @@ function validateTurnOrder(
   ) {
     throw new RoomManagerError(
       "INTERNAL_ERROR",
-      "Impossible de déterminer un ordre de dessinateurs valide.",
+      "Impossible de déterminer un ordre de joueurs valide.",
     );
   }
 
@@ -76,7 +77,7 @@ function validateTurnOrder(
   if (turnOrder.some((playerId) => !expectedIds.has(playerId))) {
     throw new RoomManagerError(
       "INTERNAL_ERROR",
-      "Impossible de déterminer un ordre de dessinateurs valide.",
+      "Impossible de déterminer un ordre de joueurs valide.",
     );
   }
 }
@@ -115,23 +116,24 @@ export function createGameId(generateGameId: GameIdGenerator = randomUUID): stri
   return gameId;
 }
 
-export function initializeTurn(
-  turnId: string,
-  drawerPlayerId: string,
-  prompt: DrawingPrompt,
-  secretLevel: GuessValue,
-): InternalTurn {
+/** Prépare le dessin présenté : consigne, niveau et dessin de l'auteur. */
+export function initializeTurn(turnId: string, authorId: string, entry: RoundEntry): InternalTurn {
   return {
     turnId,
-    drawerPlayerId,
-    prompt,
-    secretLevel,
-    drawing: null,
-    drawingSubmittedAt: null,
+    drawerPlayerId: authorId,
+    prompt: entry.prompt,
+    secretLevel: entry.secretLevel,
+    drawing: entry.drawing,
+    drawingSubmittedAt: entry.drawingSubmittedAt,
     guesses: {},
     scoresAppliedAt: null,
     scoreResult: null,
   };
+}
+
+interface PreparedRound {
+  roundId: string;
+  entries: Record<string, RoundEntry>;
 }
 
 export class GameManager {
@@ -232,23 +234,7 @@ export class GameManager {
       throw new RoomManagerError("INTERNAL_ERROR", "Impossible de préparer la partie.");
     }
 
-    const drawerPlayerId = turnOrder[0];
-    const drawer = room.players.find((player) => player.id === drawerPlayerId);
-    if (drawer === undefined) {
-      throw new RoomManagerError(
-        "INTERNAL_ERROR",
-        "Impossible de sélectionner le premier dessinateur.",
-      );
-    }
-
-    if (drawer.socketId === null) {
-      throw new RoomManagerError(
-        "PLAYERS_NOT_READY",
-        "Le dessinateur doit être reconnecté avant de lancer la partie.",
-      );
-    }
-
-    const currentTurn = this.prepareTurn(drawer.id, [], []);
+    const round = this.prepareRound(turnOrder, [], []);
     const gameId = createGameId(this.gameIdGenerator);
     const startedAt = this.clock();
     if (!Number.isFinite(startedAt)) {
@@ -269,10 +255,13 @@ export class GameManager {
       totalRounds: TOTAL_ROUNDS,
       currentRound: 1,
       turnOrder,
-      currentDrawerIndex: 0,
-      currentTurn,
-      usedPromptIds: [currentTurn.prompt.id],
-      usedTurnIds: [currentTurn.turnId],
+      roundId: round.roundId,
+      entries: round.entries,
+      votingOrder: [],
+      votingIndex: 0,
+      currentTurn: null,
+      usedPromptIds: turnOrder.map((playerId) => round.entries[playerId]?.prompt.id ?? ""),
+      usedTurnIds: [round.roundId],
       finishedState: null,
       startedAt,
       phaseEndsAt: startedAt + this.introDurationMs,
@@ -286,14 +275,7 @@ export class GameManager {
 
       return {
         room: publicRoom,
-        drawerSocketId: drawer.socketId,
-        secret: {
-          roomCode: room.code,
-          gameId,
-          turnId: currentTurn.turnId,
-          drawerPlayerId: drawer.id,
-          secretLevel: currentTurn.secretLevel,
-        },
+        assignments: this.buildAssignments(room.code, game, room.players),
       };
     } catch (error) {
       room.game = null;
@@ -329,24 +311,18 @@ export class GameManager {
     }
 
     const requester = room.players.find((player) => player.socketId === socketId);
-    if (requester === undefined) {
+    const entry = requester === undefined ? undefined : game.entries[requester.id];
+    if (requester === undefined || entry === undefined) {
       throw new RoomManagerError(
         "PLAYER_NOT_FOUND",
         "Le joueur associé à cette connexion est introuvable.",
       );
     }
 
-    if (requester.id !== game.currentTurn.drawerPlayerId) {
-      throw new RoomManagerError(
-        "NOT_CURRENT_DRAWER",
-        "Seul le dessinateur actuel peut envoyer un dessin.",
-      );
-    }
-
-    if (game.currentTurn.drawing !== null || game.currentTurn.drawingSubmittedAt !== null) {
+    if (entry.drawing !== null || entry.drawingSubmittedAt !== null) {
       throw new RoomManagerError(
         "DRAWING_ALREADY_SUBMITTED",
-        "Un dessin a déjà été envoyé pour ce tour.",
+        "Un dessin a déjà été envoyé pour cette manche.",
       );
     }
 
@@ -361,21 +337,28 @@ export class GameManager {
     }
 
     const previousPhase = game.phase;
-    const previousPhaseEndsAt = game.phaseEndsAt;
-    game.currentTurn.drawing = validation.document;
-    game.currentTurn.drawingSubmittedAt = submittedAt;
-    game.phase = "VOTING";
-    game.phaseEndsAt = null;
+    const previousVotingOrder = game.votingOrder;
+    const previousVotingIndex = game.votingIndex;
+    const previousUsedTurnIds = [...game.usedTurnIds];
+    entry.drawing = validation.document;
+    entry.drawingSubmittedAt = submittedAt;
 
     try {
+      if (game.turnOrder.every((playerId) => game.entries[playerId]?.drawing != null)) {
+        this.startVoting(game);
+      }
+
       return {
         room: this.roomManager.getPublicRoomState(room.code),
       };
     } catch (error) {
-      game.currentTurn.drawing = null;
-      game.currentTurn.drawingSubmittedAt = null;
+      entry.drawing = null;
+      entry.drawingSubmittedAt = null;
       game.phase = previousPhase;
-      game.phaseEndsAt = previousPhaseEndsAt;
+      game.currentTurn = null;
+      game.votingOrder = previousVotingOrder;
+      game.votingIndex = previousVotingIndex;
+      game.usedTurnIds = previousUsedTurnIds;
 
       if (error instanceof RoomManagerError) {
         throw error;
@@ -403,6 +386,7 @@ export class GameManager {
       );
     }
 
+    const turn = requireCurrentTurn(game);
     const requester = room.players.find((player) => player.socketId === socketId);
     if (requester === undefined) {
       throw new RoomManagerError(
@@ -411,10 +395,10 @@ export class GameManager {
       );
     }
 
-    if (requester.id === game.currentTurn.drawerPlayerId) {
+    if (requester.id === turn.drawerPlayerId) {
       throw new RoomManagerError(
         "DRAWER_CANNOT_GUESS",
-        "Le dessinateur ne peut pas voter pour son propre dessin.",
+        "Vous ne pouvez pas voter pour votre propre dessin.",
       );
     }
 
@@ -424,14 +408,14 @@ export class GameManager {
     }
 
     const validation = validateSubmitGuessPayload(payload);
-    if (validation.success && validation.data.turnId !== game.currentTurn.turnId) {
+    if (validation.success && validation.data.turnId !== turn.turnId) {
       throw new RoomManagerError(
         "STALE_TURN",
-        "Cette estimation correspond à un tour qui n’est plus actif.",
+        "Cette estimation correspond à un dessin qui n’est plus actif.",
       );
     }
 
-    if (Object.hasOwn(game.currentTurn.guesses, requester.id)) {
+    if (Object.hasOwn(turn.guesses, requester.id)) {
       throw new RoomManagerError("GUESS_ALREADY_SUBMITTED", "Votre estimation a déjà été validée.");
     }
 
@@ -455,13 +439,11 @@ export class GameManager {
     const previousPhase = game.phase;
     const previousPhaseEndsAt = game.phaseEndsAt;
     const previousScores = room.players.map((player) => player.score);
-    const previousScoresAppliedAt = game.currentTurn.scoresAppliedAt;
+    const previousScoresAppliedAt = turn.scoresAppliedAt;
     const previousScoreResult =
-      game.currentTurn.scoreResult === null
-        ? null
-        : cloneTurnScoreResult(game.currentTurn.scoreResult);
+      turn.scoreResult === null ? null : cloneTurnScoreResult(turn.scoreResult);
 
-    game.currentTurn.guesses[requester.id] = guess;
+    turn.guesses[requester.id] = guess;
 
     try {
       if (areAllGuessesSubmitted(game, eligibleVoterIds)) {
@@ -478,11 +460,11 @@ export class GameManager {
         },
       };
     } catch (error) {
-      delete game.currentTurn.guesses[requester.id];
+      delete turn.guesses[requester.id];
       game.phase = previousPhase;
       game.phaseEndsAt = previousPhaseEndsAt;
-      game.currentTurn.scoresAppliedAt = previousScoresAppliedAt;
-      game.currentTurn.scoreResult = previousScoreResult;
+      turn.scoresAppliedAt = previousScoresAppliedAt;
+      turn.scoreResult = previousScoreResult;
       room.players.forEach((player, index) => {
         player.score = previousScores[index] ?? 0;
       });
@@ -515,7 +497,7 @@ export class GameManager {
     }
 
     if (!requester.isHost) {
-      throw new RoomManagerError("NOT_HOST", "Seul l’hôte peut lancer le tour suivant.");
+      throw new RoomManagerError("NOT_HOST", "Seul l’hôte peut passer à la suite.");
     }
 
     if (game.phase === "FINISHED") {
@@ -525,27 +507,29 @@ export class GameManager {
     if (game.phase !== "REVEAL") {
       throw new RoomManagerError(
         "NOT_REVEAL_PHASE",
-        "Le tour suivant ne peut pas encore commencer.",
+        "La suite de la partie ne peut pas encore commencer.",
       );
     }
 
+    const turn = requireCurrentTurn(game);
     const eligibleVoterIds = getEligibleVoterIds(game, room.players);
     if (
       !areAllGuessesSubmitted(game, eligibleVoterIds) ||
-      game.currentTurn.scoresAppliedAt === null ||
-      game.currentTurn.scoreResult === null
+      turn.scoresAppliedAt === null ||
+      turn.scoreResult === null
     ) {
       throw new RoomManagerError(
         "INTERNAL_ERROR",
-        "Le tour actuel n’est pas prêt à être poursuivi.",
+        "Le dessin actuel n’est pas prêt à être poursuivi.",
       );
     }
 
-    const nextPosition = getNextTurnPosition(game);
-    if (nextPosition === null) {
+    const nextStep = getNextStep(game);
+    const previousPhase = game.phase;
+    const previousPhaseEndsAt = game.phaseEndsAt;
+
+    if (nextStep === "FINAL") {
       const finishedState = createPublicFinishedState(game, room.players);
-      const previousPhase = game.phase;
-      const previousPhaseEndsAt = game.phaseEndsAt;
       const previousFinishedState = game.finishedState;
       game.phase = "FINISHED";
       game.phaseEndsAt = null;
@@ -568,57 +552,81 @@ export class GameManager {
       }
     }
 
-    const nextDrawerPlayerId = game.turnOrder[nextPosition.currentDrawerIndex];
-    const nextDrawer = room.players.find((player) => player.id === nextDrawerPlayerId);
-    if (nextDrawer === undefined) {
-      throw new RoomManagerError("INTERNAL_ERROR", "Le prochain dessinateur est introuvable.");
-    }
-
-    const nextTurn = this.prepareTurn(nextDrawer.id, game.usedPromptIds, game.usedTurnIds);
-    const introStartedAt = this.clock();
-    if (!Number.isFinite(introStartedAt)) {
-      throw new RoomManagerError("INTERNAL_ERROR", "Impossible de dater le tour suivant.");
-    }
-
-    const previousPhase = game.phase;
-    const previousPhaseEndsAt = game.phaseEndsAt;
-    const previousRound = game.currentRound;
-    const previousDrawerIndex = game.currentDrawerIndex;
-    const previousTurn = game.currentTurn;
-    const previousUsedPromptIds = [...game.usedPromptIds];
+    const previousTurn = turn;
+    const previousVotingIndex = game.votingIndex;
     const previousUsedTurnIds = [...game.usedTurnIds];
 
-    game.phase = "ROUND_INTRO";
-    game.phaseEndsAt = introStartedAt + this.introDurationMs;
-    game.currentRound = nextPosition.currentRound;
-    game.currentDrawerIndex = nextPosition.currentDrawerIndex;
-    game.currentTurn = nextTurn;
-    game.usedPromptIds = [...previousUsedPromptIds, nextTurn.prompt.id];
-    game.usedTurnIds = [...previousUsedTurnIds, nextTurn.turnId];
+    if (nextStep === "NEXT_DRAWING") {
+      try {
+        game.votingIndex = previousVotingIndex + 1;
+        const authorId = game.votingOrder[game.votingIndex];
+        if (authorId === undefined) {
+          throw new RoomManagerError("INTERNAL_ERROR", "Le prochain dessin est introuvable.");
+        }
+        game.currentTurn = this.createVotingTurn(game, authorId);
+        game.phase = "VOTING";
+        game.phaseEndsAt = null;
+
+        return {
+          room: this.roomManager.getPublicRoomState(room.code),
+        };
+      } catch (error) {
+        game.phase = previousPhase;
+        game.phaseEndsAt = previousPhaseEndsAt;
+        game.votingIndex = previousVotingIndex;
+        game.currentTurn = previousTurn;
+        game.usedTurnIds = previousUsedTurnIds;
+
+        if (error instanceof RoomManagerError) {
+          throw error;
+        }
+
+        throw new RoomManagerError("INTERNAL_ERROR", "Impossible de préparer le dessin suivant.");
+      }
+    }
+
+    const introStartedAt = this.clock();
+    if (!Number.isFinite(introStartedAt)) {
+      throw new RoomManagerError("INTERNAL_ERROR", "Impossible de dater la manche suivante.");
+    }
+
+    const previousRound = game.currentRound;
+    const previousRoundId = game.roundId;
+    const previousEntries = game.entries;
+    const previousVotingOrder = game.votingOrder;
+    const previousUsedPromptIds = [...game.usedPromptIds];
 
     try {
+      const round = this.prepareRound(game.turnOrder, game.usedPromptIds, game.usedTurnIds);
+      game.phase = "ROUND_INTRO";
+      game.phaseEndsAt = introStartedAt + this.introDurationMs;
+      game.currentRound = previousRound + 1;
+      game.roundId = round.roundId;
+      game.entries = round.entries;
+      game.votingOrder = [];
+      game.votingIndex = 0;
+      game.currentTurn = null;
+      game.usedPromptIds = [
+        ...previousUsedPromptIds,
+        ...game.turnOrder.map((playerId) => round.entries[playerId]?.prompt.id ?? ""),
+      ];
+      game.usedTurnIds = [...previousUsedTurnIds, round.roundId];
+
       this.scheduleDrawingTransition(room.code, game);
-      const publicRoom = this.roomManager.getPublicRoomState(room.code);
 
       return {
-        room: publicRoom,
-        nextTurn: {
-          drawerSocketId: nextDrawer.socketId,
-          secret: {
-            roomCode: room.code,
-            gameId: game.gameId,
-            turnId: nextTurn.turnId,
-            drawerPlayerId: nextDrawer.id,
-            secretLevel: nextTurn.secretLevel,
-          },
-        },
+        room: this.roomManager.getPublicRoomState(room.code),
+        assignments: this.buildAssignments(room.code, game, room.players),
       };
     } catch (error) {
       this.clearScheduledTransition(room.code);
       game.phase = previousPhase;
       game.phaseEndsAt = previousPhaseEndsAt;
       game.currentRound = previousRound;
-      game.currentDrawerIndex = previousDrawerIndex;
+      game.roundId = previousRoundId;
+      game.entries = previousEntries;
+      game.votingOrder = previousVotingOrder;
+      game.votingIndex = previousVotingIndex;
       game.currentTurn = previousTurn;
       game.usedPromptIds = previousUsedPromptIds;
       game.usedTurnIds = previousUsedTurnIds;
@@ -627,7 +635,7 @@ export class GameManager {
         throw error;
       }
 
-      throw new RoomManagerError("INTERNAL_ERROR", "Impossible de préparer le tour suivant.");
+      throw new RoomManagerError("INTERNAL_ERROR", "Impossible de préparer la manche suivante.");
     }
   }
 
@@ -752,50 +760,135 @@ export class GameManager {
     this.phaseTimers.clear();
   }
 
-  private prepareTurn(
-    drawerPlayerId: string,
+  /** Tire une consigne distincte et un niveau secret pour chaque joueur de la manche. */
+  private prepareRound(
+    playerIds: readonly string[],
     usedPromptIds: readonly string[],
     usedTurnIds: readonly string[],
-  ): InternalTurn {
+  ): PreparedRound {
     const usedPromptIdSet = new Set(usedPromptIds);
-    const availablePrompts = this.prompts.filter((prompt) => !usedPromptIdSet.has(prompt.id));
+    let availablePrompts = this.prompts.filter((prompt) => !usedPromptIdSet.has(prompt.id));
 
-    if (availablePrompts.length === 0) {
+    if (availablePrompts.length < playerIds.length) {
       throw new RoomManagerError("INTERNAL_ERROR", "Aucune consigne inédite n’est disponible.");
     }
 
-    let selectedPromptCandidate: DrawingPrompt;
-    let secretLevel: number;
-    let turnId: string;
+    const entries: Record<string, RoundEntry> = {};
+    let roundId: string;
 
     try {
-      selectedPromptCandidate = this.choosePrompt(availablePrompts);
-      secretLevel = this.createSecretLevel();
-      turnId = this.createTurnId();
-    } catch {
-      throw new RoomManagerError("INTERNAL_ERROR", "Impossible de préparer les données du tour.");
-    }
+      for (const playerId of playerIds) {
+        const selectedCandidate = this.choosePrompt(availablePrompts);
+        const selectedPrompt = availablePrompts.find(
+          (prompt) => prompt.id === selectedCandidate.id,
+        );
+        if (selectedPrompt === undefined) {
+          throw new RoomManagerError(
+            "INTERNAL_ERROR",
+            "Impossible de sélectionner une consigne inédite valide.",
+          );
+        }
 
-    const selectedPrompt = availablePrompts.find(
-      (prompt) => prompt.id === selectedPromptCandidate.id,
-    );
-    if (selectedPrompt === undefined) {
+        const secretLevel = this.createSecretLevel();
+        validateSecretLevel(secretLevel);
+        availablePrompts = availablePrompts.filter((prompt) => prompt.id !== selectedPrompt.id);
+        entries[playerId] = {
+          prompt: selectedPrompt,
+          secretLevel,
+          drawing: null,
+          drawingSubmittedAt: null,
+        };
+      }
+
+      roundId = this.createTurnId();
+    } catch (error) {
+      if (error instanceof RoomManagerError) {
+        throw error;
+      }
+
       throw new RoomManagerError(
         "INTERNAL_ERROR",
-        "Impossible de sélectionner une consigne inédite valide.",
+        "Impossible de préparer les données de la manche.",
       );
     }
 
-    validateSecretLevel(secretLevel);
+    validateTurnId(roundId);
+    if (new Set(usedTurnIds).has(roundId)) {
+      throw new RoomManagerError(
+        "INTERNAL_ERROR",
+        "Le nouvel identifiant de manche doit être unique.",
+      );
+    }
+
+    return { roundId, entries };
+  }
+
+  private buildAssignments(
+    roomCode: string,
+    game: InternalGame,
+    players: readonly { id: string; socketId: string | null }[],
+  ): PlayerAssignment[] {
+    return game.turnOrder.map((playerId) => {
+      const entry = game.entries[playerId];
+      const player = players.find((candidate) => candidate.id === playerId);
+      if (entry === undefined || player === undefined) {
+        throw new RoomManagerError("INTERNAL_ERROR", "Une consigne de joueur est introuvable.");
+      }
+
+      return {
+        socketId: player.socketId,
+        secret: {
+          roomCode,
+          gameId: game.gameId,
+          turnId: game.roundId,
+          round: game.currentRound,
+          drawerPlayerId: playerId,
+          secretLevel: entry.secretLevel,
+          prompt: {
+            id: entry.prompt.id,
+            statement: entry.prompt.statement,
+            lowLabel: entry.prompt.lowLabel,
+            highLabel: entry.prompt.highLabel,
+          },
+        },
+      };
+    });
+  }
+
+  /** Fixe l'ordre de présentation et ouvre le vote du premier dessin. */
+  private startVoting(game: InternalGame): void {
+    const votingOrder = this.shuffle([...game.turnOrder]);
+    validateTurnOrder(game.turnOrder, votingOrder);
+
+    const firstAuthorId = votingOrder[0];
+    if (firstAuthorId === undefined) {
+      throw new RoomManagerError("INTERNAL_ERROR", "Aucun dessin à présenter.");
+    }
+
+    game.votingOrder = votingOrder;
+    game.votingIndex = 0;
+    game.currentTurn = this.createVotingTurn(game, firstAuthorId);
+    game.phase = "VOTING";
+    game.phaseEndsAt = null;
+  }
+
+  private createVotingTurn(game: InternalGame, authorId: string): InternalTurn {
+    const entry = game.entries[authorId];
+    if (entry === undefined || entry.drawing === null || entry.drawingSubmittedAt === null) {
+      throw new RoomManagerError("INTERNAL_ERROR", "Le dessin à présenter est introuvable.");
+    }
+
+    const turnId = this.createTurnId();
     validateTurnId(turnId);
-    if (new Set(usedTurnIds).has(turnId)) {
+    if (game.usedTurnIds.includes(turnId)) {
       throw new RoomManagerError(
         "INTERNAL_ERROR",
         "Le nouvel identifiant de tour doit être unique.",
       );
     }
 
-    return initializeTurn(turnId, drawerPlayerId, selectedPrompt, secretLevel);
+    game.usedTurnIds = [...game.usedTurnIds, turnId];
+    return initializeTurn(turnId, authorId, entry);
   }
 
   private scheduleDrawingTransition(roomCode: string, game: InternalGame): void {

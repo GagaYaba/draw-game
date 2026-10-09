@@ -9,6 +9,7 @@ import {
   type GuessValue,
   type JoinRoomPayload,
   type PlayerSessionCredentials,
+  type PublicGamePrompt,
   type PublicRoomState,
   type RestoreSessionPayload,
   type RestoreSessionSuccessData,
@@ -51,6 +52,7 @@ export interface ClientGameSecrets {
   gameId: string | null;
   turnId: string | null;
   secretLevel: GuessValue | null;
+  prompt: PublicGamePrompt | null;
 }
 
 export interface ClientGuessSubmission {
@@ -92,6 +94,7 @@ const EMPTY_GAME_SECRETS: ClientGameSecrets = {
   gameId: null,
   turnId: null,
   secretLevel: null,
+  prompt: null,
 };
 
 const EMPTY_GUESS_STATE: ClientGuessState = {
@@ -440,8 +443,8 @@ export function useRoomSession() {
       drawingDraft !== null &&
       (game === null ||
         game.phase !== "DRAWING" ||
-        game.currentDrawer.id !== playerId ||
-        game.submittedDrawing !== null ||
+        game.drawing === null ||
+        game.drawing.submittedPlayerIds.includes(playerId) ||
         !matchesDrawingDraftContext(drawingDraft, {
           roomCode: room.code,
           gameId: game.gameId,
@@ -457,7 +460,7 @@ export function useRoomSession() {
       guessDraft !== null &&
       (game === null ||
         game.phase !== "VOTING" ||
-        game.currentDrawer.id === playerId ||
+        game.currentDrawer?.id === playerId ||
         !matchesGuessDraftContext(guessDraft, {
           roomCode: room.code,
           gameId: game.gameId,
@@ -531,7 +534,10 @@ export function useRoomSession() {
       ((currentPendingAction === "ready" || currentPendingAction === "start") &&
         nextGame !== null) ||
       (currentPendingAction === "submitDrawing" &&
-        (gameChanged || turnChanged || nextPhase !== "DRAWING")) ||
+        (gameChanged ||
+          turnChanged ||
+          nextPhase !== "DRAWING" ||
+          nextGame?.drawing?.submittedPlayerIds.includes(currentPlayerId) === true)) ||
       (currentPendingAction === "continue" &&
         (gameChanged || turnChanged || nextPhase !== "REVEAL")) ||
       (currentPendingAction === "rematch" && (gameChanged || nextPhase !== "FINISHED"));
@@ -544,9 +550,7 @@ export function useRoomSession() {
       gameChanged ||
       turnChanged ||
       nextGame === null ||
-      nextGame.currentDrawer.id !== currentPlayerId ||
-      nextGame.phase === "REVEAL" ||
-      nextGame.phase === "FINISHED"
+      (nextGame.phase !== "ROUND_INTRO" && nextGame.phase !== "DRAWING")
     ) {
       setGameSecrets(EMPTY_GAME_SECRETS);
     }
@@ -556,7 +560,7 @@ export function useRoomSession() {
       !turnChanged &&
       nextGame !== null &&
       nextGame.phase === "VOTING" &&
-      nextGame.currentDrawer.id !== currentPlayerId;
+      nextGame.currentDrawer?.id !== currentPlayerId;
 
     if (!shouldKeepGuessState) {
       resetGuessState();
@@ -612,22 +616,21 @@ export function useRoomSession() {
 
     if (
       privateContextMatches &&
-      privateState.isCurrentDrawer &&
-      game.currentDrawer.id === playerId &&
-      game.phase !== "REVEAL" &&
-      game.phase !== "FINISHED" &&
-      isGuessValue(privateState.secretLevel)
+      (game.phase === "ROUND_INTRO" || game.phase === "DRAWING") &&
+      isGuessValue(privateState.secretLevel) &&
+      privateState.prompt !== null
     ) {
       setGameSecrets({
         gameId: game.gameId,
         turnId: game.turnId,
         secretLevel: privateState.secretLevel,
+        prompt: privateState.prompt,
       });
     } else {
       setGameSecrets(EMPTY_GAME_SECRETS);
     }
 
-    if (privateContextMatches && game.phase === "VOTING" && game.currentDrawer.id !== playerId) {
+    if (privateContextMatches && game.phase === "VOTING" && game.currentDrawer?.id !== playerId) {
       if (
         privateState.submittedGuess !== null &&
         isGuessValue(privateState.submittedGuess.value) &&
@@ -882,6 +885,7 @@ export function useRoomSession() {
         gameId: payload.gameId,
         turnId: payload.turnId,
         secretLevel: payload.secretLevel as GuessValue,
+        prompt: payload.prompt,
       });
     };
 
@@ -1388,8 +1392,13 @@ export function useRoomSession() {
       return false;
     }
 
-    if (session.currentPlayerId === null || game.currentDrawer.id !== session.currentPlayerId) {
-      setErrorMessage("Seul le dessinateur actuel peut envoyer un dessin.");
+    if (session.currentPlayerId === null) {
+      setErrorMessage("Votre session est indisponible.");
+      return false;
+    }
+
+    if (game.drawing?.submittedPlayerIds.includes(session.currentPlayerId) === true) {
+      setErrorMessage("Votre dessin a déjà été validé.");
       return false;
     }
 
@@ -1448,7 +1457,7 @@ export function useRoomSession() {
       game === null ||
       game.phase !== "VOTING" ||
       session.currentPlayerId === null ||
-      game.currentDrawer.id === session.currentPlayerId ||
+      game.currentDrawer?.id === session.currentPlayerId ||
       guessStateRef.current.submitted !== null ||
       guessStateRef.current.isSubmitting ||
       !socket.connected ||
@@ -1503,11 +1512,11 @@ export function useRoomSession() {
       return false;
     }
 
-    if (session.currentPlayerId === null || game.currentDrawer.id === session.currentPlayerId) {
+    if (session.currentPlayerId === null || game.currentDrawer?.id === session.currentPlayerId) {
       updateGuessState((currentState) => ({
         ...currentState,
         isSubmitting: false,
-        error: "Le dessinateur ne peut pas voter pendant son propre tour.",
+        error: "Vous ne pouvez pas voter pour votre propre dessin.",
       }));
       return false;
     }

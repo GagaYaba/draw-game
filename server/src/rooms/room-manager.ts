@@ -395,8 +395,14 @@ export class RoomManager {
 
     try {
       const game = room.game;
-      const isCurrentDrawer = game !== null && game.currentTurn.drawerPlayerId === player.id;
-      const submittedGuess = game === null ? undefined : game.currentTurn.guesses[player.id];
+      const turn = game?.currentTurn ?? null;
+      const isCurrentDrawer = turn !== null && turn.drawerPlayerId === player.id;
+      const submittedGuess = turn?.guesses[player.id];
+      const roundEntry = game === null ? undefined : game.entries[player.id];
+      const holdsRoundAssignment =
+        game !== null &&
+        roundEntry !== undefined &&
+        (game.phase === "ROUND_INTRO" || game.phase === "DRAWING");
 
       return {
         data: {
@@ -404,8 +410,16 @@ export class RoomManager {
           session: candidate.credentials,
           privateState: {
             gameId: game?.gameId ?? null,
-            turnId: game?.currentTurn.turnId ?? null,
-            secretLevel: game !== null && isCurrentDrawer ? game.currentTurn.secretLevel : null,
+            turnId: holdsRoundAssignment ? game.roundId : (turn?.turnId ?? null),
+            secretLevel: holdsRoundAssignment ? roundEntry.secretLevel : null,
+            prompt: holdsRoundAssignment
+              ? {
+                  id: roundEntry.prompt.id,
+                  statement: roundEntry.prompt.statement,
+                  lowLabel: roundEntry.prompt.lowLabel,
+                  highLabel: roundEntry.prompt.highLabel,
+                }
+              : null,
             submittedGuess:
               submittedGuess === undefined
                 ? null

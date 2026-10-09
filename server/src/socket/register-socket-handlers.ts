@@ -369,7 +369,11 @@ export function registerSocketHandlers(
       try {
         const startedGame = gameManager.startGame(socket.id);
         io.to(startedGame.room.code).emit(SOCKET_EVENTS.ROOM_STATE, startedGame.room);
-        io.to(startedGame.drawerSocketId).emit(SOCKET_EVENTS.TURN_SECRET, startedGame.secret);
+        for (const assignment of startedGame.assignments) {
+          if (assignment.socketId !== null) {
+            io.to(assignment.socketId).emit(SOCKET_EVENTS.TURN_SECRET, assignment.secret);
+          }
+        }
         request.acknowledge({
           success: true,
           data: { room: startedGame.room },
@@ -400,11 +404,10 @@ export function registerSocketHandlers(
         const continuation = gameManager.continueGame(socket.id);
         io.to(continuation.room.code).emit(SOCKET_EVENTS.ROOM_STATE, continuation.room);
 
-        if (continuation.nextTurn !== undefined && continuation.nextTurn.drawerSocketId !== null) {
-          io.to(continuation.nextTurn.drawerSocketId).emit(
-            SOCKET_EVENTS.TURN_SECRET,
-            continuation.nextTurn.secret,
-          );
+        for (const assignment of continuation.assignments ?? []) {
+          if (assignment.socketId !== null) {
+            io.to(assignment.socketId).emit(SOCKET_EVENTS.TURN_SECRET, assignment.secret);
+          }
         }
 
         request.acknowledge({

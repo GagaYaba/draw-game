@@ -13,18 +13,30 @@ export function GameStatusPanel({ game }: GameStatusPanelProps) {
           {game.currentRound} / {game.totalRounds}
         </dd>
       </div>
-      <div>
-        <dt>Tour</dt>
-        <dd>
-          {game.currentTurnNumber} / {game.totalTurns}
-        </dd>
-      </div>
-      <div>
-        <dt>Dessinateur</dt>
-        <dd className="game-status-panel__drawer" title={game.currentDrawer.nickname}>
-          {game.currentDrawer.nickname}
-        </dd>
-      </div>
+      {game.currentDrawer !== null ? (
+        <>
+          <div>
+            <dt>Dessin</dt>
+            <dd>
+              {game.currentTurnNumber} / {game.totalTurns}
+            </dd>
+          </div>
+          <div>
+            <dt>Auteur</dt>
+            <dd className="game-status-panel__drawer" title={game.currentDrawer.nickname}>
+              {game.currentDrawer.nickname}
+            </dd>
+          </div>
+        </>
+      ) : game.drawing !== null ? (
+        <div>
+          <dt>Dessins validés</dt>
+          <dd>
+            {game.drawing.submittedPlayerIds.length} /{" "}
+            {Math.round(game.totalTurns / game.totalRounds)}
+          </dd>
+        </div>
+      ) : null}
     </dl>
   );
 }

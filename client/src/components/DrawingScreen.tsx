@@ -1,4 +1,9 @@
-import type { DrawingDocument, PublicGameState, PublicPlayer } from "@drawing-game/shared";
+import type {
+  DrawingDocument,
+  PublicGamePrompt,
+  PublicGameState,
+  PublicPlayer,
+} from "@drawing-game/shared";
 
 import type { PendingRoomAction } from "../hooks/useRoomSession";
 import { DrawingEditor } from "./drawing/DrawingEditor";
@@ -17,6 +22,7 @@ interface DrawingScreenProps {
   game: PublicGameState;
   currentPlayerId: string | null;
   secretLevel: number | null;
+  prompt: PublicGamePrompt | null;
   pendingAction: PendingRoomAction;
   errorMessage: string | null;
   players?: readonly PublicPlayer[];
@@ -30,6 +36,7 @@ export function DrawingScreen({
   game,
   currentPlayerId,
   secretLevel,
+  prompt,
   pendingAction,
   errorMessage,
   players,
@@ -37,37 +44,38 @@ export function DrawingScreen({
   onSubmitDrawing,
   onLeaveRoom,
 }: DrawingScreenProps) {
-  const isDrawer = currentPlayerId === game.currentDrawer.id;
+  const submittedPlayerIds = game.drawing?.submittedPlayerIds ?? [];
+  const hasSubmitted = currentPlayerId !== null && submittedPlayerIds.includes(currentPlayerId);
+  const waitingNicknames = (players ?? [])
+    .filter((player) => !submittedPlayerIds.includes(player.id))
+    .map((player) => player.nickname);
   const isPending = pendingAction !== null || isConnectionBlocked;
   const isSubmitting = pendingAction === "submitDrawing";
-  const drawingMascotCharacter = game.currentTurnNumber % 2 === 0 ? "pig" : "poop";
-  const promptHeader = (
-    <GamePromptHeader
-      statement={game.prompt.statement}
-      gauge={
-        <ScaleGauge
-          lowLabel={game.prompt.lowLabel}
-          highLabel={game.prompt.highLabel}
-          value={isDrawer ? secretLevel : null}
-          valueTextLabel="Niveau à représenter"
-          size="full"
-          reserveMarkerSpace={!isDrawer}
-        />
-      }
-      valueText={
-        isDrawer && secretLevel !== null ? (
-          <GamePromptValue label="Niveau à représenter" value={secretLevel} />
-        ) : !isDrawer ? (
-          <p className="scale-gauge__value-text game-prompt-value">
-            <span className="visually-hidden">Niveau à représenter : secret</span>
-            <span aria-hidden="true">Niveau à représenter :</span>
-            <strong aria-hidden="true">?</strong>
-            <span aria-hidden="true">/ 10</span>
-          </p>
-        ) : undefined
-      }
-    />
-  );
+  const drawingMascotCharacter = game.currentRound % 2 === 0 ? "pig" : "poop";
+  const promptHeader =
+    prompt === null ? (
+      <p className="private-level-loading" role="status" aria-live="polite">
+        Réception de votre consigne et de votre niveau secret…
+      </p>
+    ) : (
+      <GamePromptHeader
+        statement={prompt.statement}
+        gauge={
+          <ScaleGauge
+            lowLabel={prompt.lowLabel}
+            highLabel={prompt.highLabel}
+            value={secretLevel}
+            valueTextLabel="Niveau à représenter"
+            size="full"
+          />
+        }
+        valueText={
+          secretLevel !== null ? (
+            <GamePromptValue label="Niveau à représenter" value={secretLevel} />
+          ) : undefined
+        }
+      />
+    );
   const leaveAction = (
     <GameLeaveAction
       id="drawing-leave-warning"
@@ -85,10 +93,10 @@ export function DrawingScreen({
       prompt={promptHeader}
       isBusy={isPending}
     >
-      {isDrawer ? (
+      {!hasSubmitted ? (
         <DrawingEditor
           key={`${game.gameId}:${game.turnId}:${currentPlayerId ?? ""}`}
-          disabled={isPending || secretLevel === null}
+          disabled={isPending || secretLevel === null || prompt === null}
           isSubmitting={isSubmitting}
           draftContext={{
             roomCode,
@@ -113,7 +121,7 @@ export function DrawingScreen({
                   {errorMessage}
                 </p>
               )}
-              {secretLevel === null && (
+              {(secretLevel === null || prompt === null) && (
                 <p
                   className="private-level-loading game-sidebar-message"
                   role="status"
@@ -144,7 +152,7 @@ export function DrawingScreen({
                   className="drawing-observer-stage__mascot"
                 />
                 <p className="drawing-observer-stage__message">
-                  Le dessin apparaîtra ici après sa validation.
+                  Les dessins seront présentés un par un quand tout le monde aura validé le sien.
                 </p>
               </div>
             </div>
@@ -171,9 +179,13 @@ export function DrawingScreen({
                 decorative
                 className="drawing-wait-mascot drawing-wait-mascot--neutral"
               />
-              <p className="card-label">Dessin en cours</p>
-              <h2 id="drawing-wait-title">{game.currentDrawer.nickname} dessine actuellement.</h2>
-              <p>Son niveau reste secret. Le dessin apparaîtra seulement après sa validation.</p>
+              <p className="card-label">Dessin validé</p>
+              <h2 id="drawing-wait-title">En attente des autres joueurs.</h2>
+              <p>
+                {waitingNicknames.length > 0
+                  ? `Encore en train de dessiner : ${waitingNicknames.join(", ")}.`
+                  : "Tout le monde a validé. Les votes vont commencer."}
+              </p>
             </section>
 
             {leaveAction}
