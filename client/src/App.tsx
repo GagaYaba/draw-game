@@ -28,6 +28,8 @@ export function AppLayout({ isGameActive, isLobby = false, children }: AppLayout
 
   return (
     <main className={shellClassName}>
+      {/* Les écrans de partie n'affichent pas l'en-tête : le titre de page reste disponible. */}
+      {isGameActive && <h1 className="visually-hidden">Drawing Scale Game, partie en cours</h1>}
       {!isGameActive && (
         <header className="hero">
           <p className="kicker">Jeu multijoueur</p>

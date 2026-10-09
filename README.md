@@ -35,6 +35,7 @@ Variables disponibles :
 
 - `PORT`, port HTTP du serveur, `3000` par défaut ;
 - `PLAYER_RECONNECT_GRACE_MS`, délai de reconnexion, `60000` ms par défaut ;
+- `MAX_ROOMS_PER_IP_PER_DAY`, nombre de salons qu'une adresse IP peut créer en 24 heures, `5` par défaut (à relever pour un réseau partagé) ;
 - `NODE_ENV`, environnement Node ;
 - `SOCKET_ALLOWED_ORIGINS`, liste facultative d'origines HTTP(S) séparées par des virgules si le client est servi depuis un autre domaine de confiance. Les connexions navigateur de même hôte sont autorisées par défaut.
 
